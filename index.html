@@ -626,12 +626,18 @@ function detect(hz) {
     for (let i = 0; i < N; i += 7) { if (!Number.isFinite(rA[i]) || !Number.isFinite(rB[i])) continue; if (isW(rA[i], gA[i], bA[i]) || isW(rB[i], gB[i], bB[i])) continue;
       if (hz === 'flood') { smp.push((rB[i] + gB[i] + bB[i]) - (rA[i] + gA[i] + bA[i])); smpR.push(rB[i] - rA[i]); } else if (isV(rA[i], gA[i], bA[i])) smp.push(gB[i] - gA[i]); }
     const off = med(smp), offR = hz === 'flood' ? med(smpR) : 0; O.radNorm = { off, offR };
-    if (Math.abs(off) >= lv / 2 || Math.abs(offR) >= lv / 2) warn.push(`Entre las dos fechas todo el terreno cambió de brillo de forma pareja (${off > 0 ? '+' : ''}${nf(off, 0)} niveles${hz === 'flood' ? ` en total, ${offR > 0 ? '+' : ''}${nf(offR, 0)} en HH` : ' en HV'}). Suele deberse a calibración distinta${a.coleccion && b.coleccion && a.coleccion !== b.coleccion ? ` (${escapeHtml(a.coleccion)} frente a ${escapeHtml(b.coleccion)})` : ''} o a humedad general; ILLARI lo descontó antes de detectar cambios.`);
+    // …y además en forma LOCAL (ventana de ~7 km): en montaña la diferencia de calibración o de humedad no es pareja. Un incendio o una inundación
+    // ocupan una fracción pequeña de esa ventana, así que la media local casi no los absorbe.
+    const cellKmX = (bbox.e - bbox.w) / NX * KM_DEG * Math.cos((bbox.s + bbox.n) / 2 * Math.PI / 180), K = 2 * Math.round(3.5 / cellKmX) + 1, dL = new Float32Array(N).fill(NaN), dR = new Float32Array(N).fill(NaN);
+    for (let i = 0; i < N; i++) { if (!Number.isFinite(rA[i]) || !Number.isFinite(rB[i]) || isW(rA[i], gA[i], bA[i]) || isW(rB[i], gB[i], bB[i])) continue;
+      if (hz === 'flood') { dL[i] = (rB[i] + gB[i] + bB[i]) - (rA[i] + gA[i] + bA[i]); dR[i] = rB[i] - rA[i]; } else if (isV(rA[i], gA[i], bA[i])) dL[i] = gB[i] - gA[i]; }
+    const offL = boxMean(dL, NX, NY, K), offLR = hz === 'flood' ? boxMean(dR, NX, NY, K) : null, oL = i => Number.isFinite(offL[i]) ? offL[i] : off, oLR = i => offLR && Number.isFinite(offLR[i]) ? offLR[i] : offR;
+    if (Math.abs(off) >= lv / 2 || Math.abs(offR) >= lv / 2) warn.push(`Entre las dos fechas todo el terreno cambió de brillo de forma pareja (${off > 0 ? '+' : ''}${nf(off, 0)} niveles${hz === 'flood' ? ` en total, ${offR > 0 ? '+' : ''}${nf(offR, 0)} en HH` : ' en HV'}). Suele deberse a calibración distinta${a.coleccion && b.coleccion && a.coleccion !== b.coleccion ? ` (${escapeHtml(a.coleccion)} frente a ${escapeHtml(b.coleccion)})` : ''} o a humedad general; ILLARI lo descontó (en forma local, por zonas de ~7 km) antes de detectar cambios.`);
     for (let i = 0; i < N; i++) { const okA = a.rgba[i * 4 + 3] > 0 && Number.isFinite(rA[i]), okB = b.rgba[i * 4 + 3] > 0 && Number.isFinite(rB[i]);
       if (!okA || !okB) { pre[i] = post[i] = diff[i] = NaN; continue; } both++;
       if (hz === 'flood') { pre[i] = rA[i] + gA[i] + bA[i]; post[i] = rB[i] + gB[i] + bB[i]; diff[i] = post[i] - pre[i]; const wA = isW(rA[i], gA[i], bA[i]), wB = isW(rB[i], gB[i], bB[i]);
-        if (wA && wB) cls[i] = 1; else if (wB && !wA && diff[i] - off <= -lv) cls[i] = 2; else if (!wA && !wB && rB[i] - rA[i] - offR >= lv) cls[i] = 3; }
-      else { pre[i] = gA[i]; post[i] = gB[i]; diff[i] = post[i] - pre[i]; if (isV(rA[i], gA[i], bA[i]) && diff[i] - off <= -lv) cls[i] = 5; } }
+        if (wA && wB) cls[i] = 1; else if (wB && !wA && diff[i] - oL(i) <= -lv) cls[i] = 2; else if (!wA && !wB && rB[i] - rA[i] - oLR(i) >= lv) cls[i] = 3; }
+      else { pre[i] = gA[i]; post[i] = gB[i]; diff[i] = post[i] - pre[i]; if (isV(rA[i], gA[i], bA[i]) && diff[i] - oL(i) <= -lv) cls[i] = 5; } }
     { let veg = 0, hit = 0; for (let i = 0; i < N; i++) { if (hz === 'fire' ? Number.isFinite(rA[i]) && isV(rA[i], gA[i], bA[i]) : Number.isFinite(rA[i])) veg++; if (hz === 'fire' ? cls[i] === 5 : cls[i] === 2 || cls[i] === 3) hit++; }
       if (veg && hit / veg > 0.2) warn.push(`El cambio cubre el ${nf(hit / veg * 100, 0)} % del ${hz === 'fire' ? 'área con vegetación' : 'terreno'}: es demasiado extenso para ${hz === 'fire' ? 'un incendio' : 'una inundación'} y suele ser efecto de humedad o de la visualización. Súbele el «Cambio mínimo» o confirma con OPERA y VIIRS.`); }
     pol = hz === 'flood' ? 'brillo total HH+HV (agua) y canal rojo HH (doble rebote)' : 'canal verde HV (vegetación)'; O.thrUsed = null;
@@ -1274,7 +1280,7 @@ function compat(a, b) {
 }
 function pairForEvent(acqs, ev) {
   const covers = x => x.cov0 == null || x.cov0 >= 0.5;   // huella CMR: al menos media ciudad cubierta
-  const prevCompat = B => { if (!covers(acqs[B])) return -1; for (let A = B - 1; A >= 0; A--) if (covers(acqs[A]) && compat(acqs[A], acqs[B]).ok) return A; return -1; };
+  const prevCompat = B => { if (!covers(acqs[B])) return -1; let any = -1; for (let A = B - 1; A >= 0; A--) if (covers(acqs[A]) && compat(acqs[A], acqs[B]).ok) { if (!acqs[A].coleccion || acqs[A].coleccion === acqs[B].coleccion) return A; if (any < 0) any = A; if (B - A > 3) break; } return any; };
   if (!ev) { for (let B = acqs.length - 1; B > 0; B--) { const A = prevCompat(B); if (A >= 0) return [A, B]; } return [Math.max(0, acqs.length - 2), acqs.length - 1]; }
   const first = acqs.findIndex(x => x.date >= ev);
   if (first >= 0) for (let B = first; B < acqs.length && B <= first + 4; B++) { const A = prevCompat(B); if (A >= 0 && acqs[A].date < ev) return [A, B]; }
