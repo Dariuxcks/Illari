@@ -620,11 +620,20 @@ function detect(hz) {
     // Visualización real de NASA (medida sobre Guayaquil): el agua tranquila devuelve poca señal en HH y HV, así que se ve OSCURA
     // y azulada (p. ej. río Guayas ≈ 20,40,55); vegetación verde intensa (≈ 70,185,20); ciudad amarilla (≈ 225,190,25).
     const isW = (r, g, bl) => { const L = r + g + bl; return L > 0 && L < GIBS_WATER.maxL && bl / L > GIBS_WATER.minBlue; }, isV = (r, g, bl) => g > r + 12 && g > bl + 12;
+    // Normalización radiométrica relativa: la mediana del cambio sobre terreno estable (vegetación o ciudad, sin agua) debería ser ~0.
+    // Si no lo es (p. ej. una fecha PROVISIONAL y otra VALIDATED, o humedad general tras lluvias), se descuenta para no confundirla con fuego o agua.
+    const med = arr => { const v = arr.filter(Number.isFinite).sort((x, y) => x - y); return v.length ? v[v.length >> 1] : 0; }, smp = [], smpR = [];
+    for (let i = 0; i < N; i += 7) { if (!Number.isFinite(rA[i]) || !Number.isFinite(rB[i])) continue; if (isW(rA[i], gA[i], bA[i]) || isW(rB[i], gB[i], bB[i])) continue;
+      if (hz === 'flood') { smp.push((rB[i] + gB[i] + bB[i]) - (rA[i] + gA[i] + bA[i])); smpR.push(rB[i] - rA[i]); } else if (isV(rA[i], gA[i], bA[i])) smp.push(gB[i] - gA[i]); }
+    const off = med(smp), offR = hz === 'flood' ? med(smpR) : 0; O.radNorm = { off, offR };
+    if (Math.abs(off) >= lv / 2 || Math.abs(offR) >= lv / 2) warn.push(`Entre las dos fechas todo el terreno cambió de brillo de forma pareja (${off > 0 ? '+' : ''}${nf(off, 0)} niveles${hz === 'flood' ? ` en total, ${offR > 0 ? '+' : ''}${nf(offR, 0)} en HH` : ' en HV'}). Suele deberse a calibración distinta${a.coleccion && b.coleccion && a.coleccion !== b.coleccion ? ` (${escapeHtml(a.coleccion)} frente a ${escapeHtml(b.coleccion)})` : ''} o a humedad general; ILLARI lo descontó antes de detectar cambios.`);
     for (let i = 0; i < N; i++) { const okA = a.rgba[i * 4 + 3] > 0 && Number.isFinite(rA[i]), okB = b.rgba[i * 4 + 3] > 0 && Number.isFinite(rB[i]);
       if (!okA || !okB) { pre[i] = post[i] = diff[i] = NaN; continue; } both++;
       if (hz === 'flood') { pre[i] = rA[i] + gA[i] + bA[i]; post[i] = rB[i] + gB[i] + bB[i]; diff[i] = post[i] - pre[i]; const wA = isW(rA[i], gA[i], bA[i]), wB = isW(rB[i], gB[i], bB[i]);
-        if (wA && wB) cls[i] = 1; else if (wB && !wA && diff[i] <= -lv) cls[i] = 2; else if (!wA && !wB && rB[i] - rA[i] >= lv) cls[i] = 3; }
-      else { pre[i] = gA[i]; post[i] = gB[i]; diff[i] = post[i] - pre[i]; if (isV(rA[i], gA[i], bA[i]) && diff[i] <= -lv) cls[i] = 5; } }
+        if (wA && wB) cls[i] = 1; else if (wB && !wA && diff[i] - off <= -lv) cls[i] = 2; else if (!wA && !wB && rB[i] - rA[i] - offR >= lv) cls[i] = 3; }
+      else { pre[i] = gA[i]; post[i] = gB[i]; diff[i] = post[i] - pre[i]; if (isV(rA[i], gA[i], bA[i]) && diff[i] - off <= -lv) cls[i] = 5; } }
+    { let veg = 0, hit = 0; for (let i = 0; i < N; i++) { if (hz === 'fire' ? Number.isFinite(rA[i]) && isV(rA[i], gA[i], bA[i]) : Number.isFinite(rA[i])) veg++; if (hz === 'fire' ? cls[i] === 5 : cls[i] === 2 || cls[i] === 3) hit++; }
+      if (veg && hit / veg > 0.2) warn.push(`El cambio cubre el ${nf(hit / veg * 100, 0)} % del ${hz === 'fire' ? 'área con vegetación' : 'terreno'}: es demasiado extenso para ${hz === 'fire' ? 'un incendio' : 'una inundación'} y suele ser efecto de humedad o de la visualización. Súbele el «Cambio mínimo» o confirma con OPERA y VIIRS.`); }
     pol = hz === 'flood' ? 'brillo total HH+HV (agua) y canal rojo HH (doble rebote)' : 'canal verde HV (vegetación)'; O.thrUsed = null;
     if (both < 0.3 * N) warn.push(`Las dos fechas se superponen solo en el ${nf(both / N * 100, 0)} % de la ciudad: el radar no cubrió toda la zona en ambas pasadas.`);
     if (hz === 'flood') { const D = S.data[hz]; if (D && D.z) { let rm = 0; for (let r = 0; r < NY; r++) for (let c = 0; c < NX; c++) { const i = r * NX + c; if (cls[i] < 2) continue; const la = bbox.n - (r + 0.5) * (bbox.n - bbox.s) / NY, lo = bbox.w + (c + 0.5) * (bbox.e - bbox.w) / NX; if (D.z[nearestCell(bbox, D.NX, D.NY, la, lo)] > 25) { cls[i] = 0; rm++; } } O.demMasked = rm; } }
@@ -1749,18 +1758,19 @@ function modelRain(hz, date) { const D = S.data[hz]; if (!D || D.mode === 'demo'
   if (D.raw.kind === 'flood') { const v = D.raw.R.slice(0, nW).map(L => L.p[L.dates.indexOf(date)]).filter(Number.isFinite); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN; }
   const v = D.raw.locs.slice(0, nW).map(L => L.find(x => x.date === date)?.r).filter(Number.isFinite); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN; }
 const hhmm = t => new Date(t).toLocaleTimeString('es', { timeZone: 'America/Guayaquil', hour: '2-digit', minute: '2-digit' });
+const dhm = t => new Date(t).toLocaleString('es', { timeZone: 'America/Guayaquil', weekday: 'short', hour: '2-digit', minute: '2-digit' });
 function renderRain() {
   const el = $('#rBody'); if (!el) return; const R = S.rain, cfg = CITIES[S.hz];
   if (!R || R.status === 'loading') { el.innerHTML = '<p class="note">Consultando NASA GPM IMERG (lluvia estimada por la constelación de satélites GPM cada 30 minutos)…</p>'; return; }
   if (R.status === 'error') { el.innerHTML = `<p class="note">No se pudo leer IMERG: ${escapeHtml(R.err)}. El pronóstico sigue disponible en Estimado.</p>`; return; }
   const C = R.city[S.hz], d7 = C.days.slice(-7), maxB = Math.max(1, ...C.hh.map(x => Number.isFinite(x) ? x : 0)), sum7 = d7.reduce((a, x) => a + (Number.isFinite(x.mm) ? x.mm : 0), 0);
-  $('#rSub').textContent = `hasta las ${hhmm(R.last + 1800e3)} (hora de Ecuador)`;
+  $('#rSub').textContent = `hasta ${dhm(R.last + 1800e3)} (hora de Ecuador)`;
   const row = x => { const m = modelRain(S.hz, x.date); return `<tr><th>${fmtDate(x.date, 'w')}</th><td>${Number.isFinite(x.mm) ? `<b>${nf(x.mm, 1)}</b> mm${x.max > x.mm * 1.5 && x.max >= 5 ? ` <span class="pd">(máx. ${nf(x.max, 0)})</span>` : ''}` : '<span class="pd">sin dato aún</span>'}</td><td>${Number.isFinite(m) ? nf(m, 1) + ' mm' : '—'}</td></tr>`; };
-  el.innerHTML = `<div class="rkpi"><div><b>${nf(C.h3, 1)} mm</b><span>últimas 3 h</span></div><div><b>${nf(C.h24, 1)} mm</b><span>últimas 24 h (máx. ${nf(C.max24, 0)} mm)</span></div><div><b>${nf(sum7, 0)} mm</b><span>últimos 7 días</span></div></div>
+  el.innerHTML = `<div class="rkpi"><div><b>${nf(C.h3, 1)} mm</b><span>últimas 3 h</span></div><div><b>${nf(C.h24, 1)} mm</b><span>últimas 24 h · máx. ${nf(C.max24, 0)} mm en una celda</span></div><div><b>${nf(sum7, 0)} mm</b><span>últimos 7 días</span></div></div>
     <div class="rbars" title="Lluvia media sobre ${escapeHtml(cfg.city)} cada 30 minutos, últimas 24 h">${C.hh.map((x, i) => Number.isFinite(x) ? `<i class="${i >= 42 ? 't' : ''}" style="height:${Math.max(2, x / maxB * 100)}%" title="${hhmm(R.last - (47 - i) * 1800e3)}: ${nf(x, 1)} mm/h"></i>` : '<i class="na" style="height:4%"></i>').join('')}</div>
-    <div class="rax"><span>${hhmm(R.last - 47 * 1800e3)}</span><span>cada 30 min · promedio de ${C.n} celdas de 10 km</span><span>${hhmm(R.last + 1800e3)}</span></div>
+    <div class="rax"><span>${dhm(R.last - 47 * 1800e3)}</span><span>cada 30 min · promedio de ${C.n} celdas de 10 km</span><span>${dhm(R.last + 1800e3)}</span></div>
     <table class="pairt"><thead><tr><th>Día (UTC)</th><th>Medido · IMERG</th><th>Modelo · Open-Meteo</th></tr></thead><tbody>${d7.map(row).join('')}</tbody></table>
-    <p class="note"><b>Observado:</b> NASA GPM IMERG combina radares y radiómetros de microondas de la constelación GPM (≈10 km, cada 30 min, publicado con ~6 h de demora). No es un pluviómetro: subestima aguaceros muy localizados. La columna «Modelo» es la reconstrucción que usa el Estimado; si difieren mucho, conviene revisar ambos.</p>`;
+    <p class="note"><b>Observado:</b> las últimas 24 h usan IMERG <i>Early</i> (preliminar; NASA lo corrige en las versiones Late y Final) y los días, la capa diaria de GIBS. IMERG combina radares y radiómetros de microondas de la constelación GPM (≈10 km, cada 30 min, publicado con ~6 h de demora). No es un pluviómetro: subestima aguaceros muy localizados. La columna «Modelo» es la reconstrucción que usa el Estimado; si difieren mucho, conviene revisar ambos.</p>`;
 }
 
 /* ============================================================================ SINCRONIZACIÓN AUTOMÁTICA
