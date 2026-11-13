@@ -2,7 +2,7 @@
 
 **BY Anthony Cisneros a.k.a [rxn1n](https://github.com/Rxn1n)** · autor y creador · coautores en [`AUTHORS.md`](AUTHORS.md)
 
-> **Pruébalo en línea (sin instalar nada):** https://rxn1n.github.io/Illari/
+> **Pruébalo en línea (sin instalar nada):** https://rxn1n.github.io/Illari/ · espejo en Vercel: https://illari-three.vercel.app/
 
 Plataforma web **de código abierto (MIT)** que convierte datos de observación terrestre en información
 útil para la gestión de riesgos en Ecuador. Es el proyecto para el reto *Dancing with the SARs*
