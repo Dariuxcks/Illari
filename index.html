@@ -1346,7 +1346,7 @@ async function viirsHotspots(bb, d0, d1) {
 const ev2 = d => addDays(d, 1);
 async function loadMulti(hz) {
   const O = S.obs[hz]; if (!O || O.source === 'demo' || O.source === 'loading' || !O.acqs?.length) { S.multi[hz] = null; return; }
-  const now = O.event === NOW_EV, ev = now ? addDays(TODAY, -12) : O.event && O.event <= TODAY ? O.event : O.acqs[O.B].date, M = { hz, ev, now, status: 'loading', ver: Date.now(), notes: [] }; S.multi[hz] = M; renderMulti();
+  const now = O.event === NOW_EV, ev = now ? addDays(TODAY, -12) : O.event && O.event <= TODAY ? O.event : O.acqs[O.B].date, M = { hz, ev, now, status: 'loading', ver: Date.now(), notes: [] }; S.multi[hz] = M; renderMulti(); if (S.hz === hz && S.mode === 'obs') renderObs();
   try {
     const N = O.NX * O.NY, px = cellKm2(O);
     if (hz === 'flood') {
@@ -1380,10 +1380,12 @@ async function loadMulti(hz) {
           if (isNew) { nNew++; if (hi(cA[i])) nHi++; if (hs.length && near(i, 1)) { nFire++; cls[i] = hi(cA[i]) ? 6 : 3; if (R && R.cls[i] === 5) { nisIn++; cls[i] = 9; } } else cls[i] = 7; } }
         dist = { aD, bD, url: gA.url, km: { nuevo: nNew * px, alto: nHi * px, fuego: nFire * px, nisConf: nisIn * px, nisAll: nisAll * px } }; }
       M.fire = { hs, dist, sec: sectorShare(O, i => cls[i] === 3 || cls[i] === 6 || cls[i] === 9, CITIES.fire.sectors, 2) };
-      M.cls = cls; for (const h of hs) { const r = Math.floor((O.bbox.n - h.lat) / (O.bbox.n - O.bbox.s) * O.NY), c = Math.floor((h.lon - O.bbox.w) / (O.bbox.e - O.bbox.w) * O.NX); for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) { const rr = r + dr, cc = c + dc; if (rr >= 0 && cc >= 0 && rr < O.NY && cc < O.NX) cls[rr * O.NX + cc] = 10; } }
+      M.cls = cls;
     }
     try { const C = await loadCtx(hz); if (hz === 'fire' && C && M.fire?.dist) { const nat = new Set(['Bosque', 'Matorral', 'Sabana y pasto', 'Humedal']); let n = 0; for (let i = 0; i < N; i++) if ((M.cls[i] === 3 || M.cls[i] === 6 || M.cls[i] === 9) && C.lc[i] !== 255 && nat.has(IGBP[C.lc[i]][1])) n++; M.fire.dist.km.nat = n * px; }
       M.expo = hz === 'flood' ? exposure(O, C, i => M.cls[i] === 2 || M.cls[i] === 3) : exposure(O, C, i => M.cls[i] === 3 || M.cls[i] === 6 || M.cls[i] === 9); } catch (e) { M.expo = null; }
+    // Los focos VIIRS se pintan al final, solo para el mapa: antes borraban píxeles quemados y sesgaban los conteos de vegetación y población.
+    if (hz === 'fire') { const cls = M.cls, hs = M.fire.hs; for (const h of hs) { const r = Math.floor((O.bbox.n - h.lat) / (O.bbox.n - O.bbox.s) * O.NY), c = Math.floor((h.lon - O.bbox.w) / (O.bbox.e - O.bbox.w) * O.NX); for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) { const rr = r + dr, cc = c + dc; if (rr >= 0 && cc >= 0 && rr < O.NY && cc < O.NX) if (!cls[rr * O.NX + cc]) cls[rr * O.NX + cc] = 10; } } }
     M.status = 'ok';
   } catch (e) { M.status = 'error'; M.err = e.message; }
   if (S.multi[hz] === M) { S.cache.clear(); if (S.hz === hz) { renderMulti(); renderPhysics(); draw(); renderLegend(); if (S.mode === 'obs') renderObs(); } }
