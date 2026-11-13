@@ -728,7 +728,8 @@ function srcOf(url) { const u = String(url);
   if (/api\.daac\.asf\.alaska\.edu/.test(u)) return ['asf', 'ASF DAAC · archivo SAR (API de Vertex)'];
   if (/flood-api\.open-meteo/.test(u)) return ['glofas', 'GloFAS · caudal de ríos (Open-Meteo)'];
   if (/marine-api\.open-meteo/.test(u)) return ['marine', 'Mareas · Open-Meteo Marine'];
-  if (/open-meteo\.com\/v1\/elevation/.test(u)) return ['dem', 'Relieve · Copernicus DEM (Open-Meteo)'];
+  if (/elevation-tiles-prod/.test(u)) return ['demt', 'Relieve · NASA SRTM (AWS Terrain Tiles)'];
+  if (/open-meteo\.com\/v1\/elevation/.test(u)) return ['dem', 'Relieve · Copernicus DEM (Open-Meteo, respaldo)'];
   if (/open-meteo/.test(u)) return ['om', 'Pronóstico meteorológico · Open-Meteo'];
   if (/firms\.modaps/.test(u)) return ['firms', 'NASA FIRMS · focos de calor'];
   return null; }
@@ -741,11 +742,24 @@ async function srcFetch(url, opt) { srcMark(url, { status: 'pending' });
 async function getJSON(url, ms = 25000) { const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), ms); try { const r = await srcFetch(url, { signal: ctl.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.json(); } finally { clearTimeout(tm); } }
 const coordQS = pts => `latitude=${pts.map(p => p[0].toFixed(4)).join(',')}&longitude=${pts.map(p => p[1].toFixed(4)).join(',')}`;
 const asArr = j => Array.isArray(j) ? j : [j];
+/* Relieve: 1) caché del navegador · 2) NASA SRTM en teselas Terrarium de AWS Open Data (sin clave ni límite de consultas)
+   · 3) respaldo Copernicus DEM vía Open-Meteo, en serie para no exceder su límite de 600 puntos/min. */
+const TT_Z = 11;
+async function demTiles(cells) { const N = 256 * 2 ** TT_Z;
+  const P = cells.map(([la, lo]) => [(lo + 180) / 360 * N, (1 - Math.log(Math.tan(Math.PI / 4 + la * Math.PI / 360)) / Math.PI) / 2 * N]), need = new Set();
+  P.forEach(([X, Y]) => { const x0 = Math.floor(X - .5), y0 = Math.floor(Y - .5); for (const x of [x0, x0 + 1]) for (const y of [y0, y0 + 1]) need.add(Math.floor(x / 256) + '/' + Math.floor(y / 256)); });
+  const T = new Map(); await Promise.all([...need].map(async k => T.set(k, await fetchPixels(`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${TT_Z}/${k}.png`, 20000))));
+  const e = (x, y) => { const tx = Math.floor(x / 256), ty = Math.floor(y / 256), d = T.get(tx + '/' + ty).data, i = ((y - ty * 256) * 256 + (x - tx * 256)) * 4; return d[i] * 256 + d[i + 1] + d[i + 2] / 256 - 32768; };
+  return Float32Array.from(P, ([X, Y]) => { const x0 = Math.floor(X - .5), y0 = Math.floor(Y - .5), fx = X - .5 - x0, fy = Y - .5 - y0;
+    return Math.max(0, e(x0, y0) * (1 - fx) * (1 - fy) + e(x0 + 1, y0) * fx * (1 - fy) + e(x0, y0 + 1) * (1 - fx) * fy + e(x0 + 1, y0 + 1) * fx * fy); }); }
+async function demOpenMeteo(cells) { const z = new Float32Array(cells.length);
+  for (let i = 0; i < cells.length; i += 100) { let j = null;
+    for (let a = 0; a < 3 && !j; a++) { try { j = await getJSON(`https://api.open-meteo.com/v1/elevation?${coordQS(cells.slice(i, i + 100))}`); } catch (e) { if (a === 2) throw e; await new Promise(r => setTimeout(r, 4000 * (a + 1))); } }
+    j.elevation.forEach((v, k) => { z[i + k] = Math.max(0, v); }); }
+  return z; }
 async function fetchDEM(key, cells) {
-  try { const c = JSON.parse(localStorage.getItem(key) || 'null'); if (c && c.length === cells.length) { srcMark('https://api.open-meteo.com/v1/elevation', { status: 'ok', http: 'caché', msg: 'relieve guardado en este navegador' }); return Float32Array.from(c); } } catch (e) {}
-  const z = new Float32Array(cells.length), chunks = []; for (let i = 0; i < cells.length; i += 100) chunks.push(i);
-  const worker = async () => { while (chunks.length) { const i = chunks.shift(), part = cells.slice(i, i + 100), j = await getJSON(`https://api.open-meteo.com/v1/elevation?${coordQS(part)}`); j.elevation.forEach((v, k) => { z[i + k] = v; }); } };
-  await Promise.all([worker(), worker(), worker(), worker()]);
+  try { const c = JSON.parse(localStorage.getItem(key) || 'null'); if (c && c.length === cells.length) { srcMark('https://s3.amazonaws.com/elevation-tiles-prod/', { status: 'ok', http: 'caché', msg: 'relieve guardado en este navegador' }); return Float32Array.from(c); } } catch (e) {}
+  let z; try { z = await demTiles(cells); } catch (e) { z = await demOpenMeteo(cells); }
   try { localStorage.setItem(key, JSON.stringify(Array.from(z, v => Math.round(v)))); } catch (e) {}
   return z;
 }
@@ -756,7 +770,7 @@ function slopeDeg(z, NX, NY, bb) { const dy = (bb.n - bb.s) / NY * KM_DEG * 1000
 const slopeFactor = deg => Math.min(4, Math.exp(0.0693 * deg));
 async function loadFire() {
   const cfg = CITIES.fire, all = gridPts(cfg.bbox, ...cfg.wgrid).concat(cfg.sectors.map(s => [s[1], s[2]])), [NX, NY] = [cfg.dem[1], cfg.dem[0]], cells = gridPts(cfg.bbox, NX, NY);
-  const [wx, z] = await Promise.all([getJSON(`https://api.open-meteo.com/v1/forecast?${coordQS(all)}&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation&past_days=60&forecast_days=16&timezone=America%2FGuayaquil`, 40000), fetchDEM('illari-dem-uio-v1', cells)]);
+  const [wx, z] = await Promise.all([getJSON(`https://api.open-meteo.com/v1/forecast?${coordQS(all)}&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation&past_days=60&forecast_days=16&timezone=America%2FGuayaquil`, 40000), fetchDEM('illari-dem-uio-v2', cells)]);
   return buildFire(cfg, asArr(wx).map(L => dailyNoon(L.hourly)), z, cells, NX, NY, 'live');
 }
 function buildFire(cfg, locs, z, cells, NX, NY, mode, today = TODAY) {
@@ -778,7 +792,7 @@ async function loadFlood() {
     opt(getJSON(`https://flood-api.open-meteo.com/v1/flood?${coordQS(riv)}&daily=river_discharge,river_discharge_max&past_days=30&forecast_days=16`)),
     opt(getJSON(`https://flood-api.open-meteo.com/v1/flood?${coordQS(riv)}&daily=river_discharge&start_date=1984-01-01&end_date=2022-07-31`, 60000)),
     opt(getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${cfg.tide[1]}&longitude=${cfg.tide[2]}&hourly=sea_level_height_msl&past_days=30&forecast_days=16&cell_selection=sea&timezone=America%2FGuayaquil`)),
-    fetchDEM('illari-dem-gye-v1', cells)]);
+    fetchDEM('illari-dem-gye-v2', cells)]);
   const R = asArr(rain).map(L => ({ dates: L.daily.time, p: L.daily.precipitation_sum.map(v => v ?? NaN), prob: (L.daily.precipitation_probability_max || []).map(v => v ?? NaN) }));
   const rivers = q.__err ? null : asArr(q).map((L, k) => ({ name: cfg.rivers[k][0], dates: L.daily.time, q: L.daily.river_discharge.map(v => v ?? NaN), clim: qh.__err ? null : climQ(asArr(qh)[k].daily.river_discharge) }));
   let tides = null;
@@ -1084,7 +1098,7 @@ function renderLegend() {
     const ks = R.kind === 'GUNW' ? [6] : S.hz === 'flood' ? [2, 3, 1] : [5];
     el.innerHTML = `<h4>Cambio detectado · ${fmtDate(O.acqs[O.A].date)} → ${fmtDate(O.acqs[O.B].date)}</h4><div class="cats">${ks.map(k => `<span class="sw" style="background:${OBS_CLASSES[k][1]}"></span><span>${OBS_CLASSES[k][0]} <span class="mono" style="color:var(--muted)">${nf(R.tot[k] || 0, 1)} km²</span></span>`).join('')}</div><div class="hint">Evidencia observada por el radar NISAR. Usa ⇆ para comparar las dos imágenes.</div>`;
     return; }
-  if (lay === 'terrain') { el.innerHTML = `<h4>Relieve (Copernicus DEM, ~90 m)</h4><div class="hint">Más claro = más alto.</div>`; return; }
+  if (lay === 'terrain') { el.innerHTML = `<h4>Relieve (NASA SRTM vía AWS Terrain Tiles; respaldo Copernicus DEM)</h4><div class="hint">Más claro = más alto.</div>`; return; }
   if (lay === 'rain') { el.innerHTML = `<h4>Lluvia IMERG (NASA) · ${gibsDate()}</h4><div class="hint">Lluvia estimada por satélite (GPM).</div>`; return; }
   if (lay === 'fires') { el.innerHTML = `<h4>Focos VIIRS (NASA) · ${gibsDate()}</h4><div class="hint">Detecciones térmicas de 375 m.</div>`; return; }
   if (lay === 'aux' && S.hz === 'flood') { el.innerHTML = `<h4>Lluvia acumulada 72 h (pronóstico)</h4><div class="cls"><span style="background:#99ccff"></span><span style="background:#4d9bff"></span><span style="background:#0050ff"></span></div><div class="cls-l mono"><span>0</span><span>75</span><span>150+ mm</span></div>`; return; }
@@ -1107,7 +1121,7 @@ function renderMethod() {
   <p><b>Modo en vivo.</b> ILLARI pide a NASA CMR las pasadas de NISAR (fecha, hora, track, dirección, frame y polarización) y a NASA GIBS el mosaico diario en falso color. Solo compara dos fechas con la misma geometría y el mismo modo de polarización; si no, bloquea la comparación. Sobre la imagen de 8 bits, el agua es oscura y azulada (calibrado con el río Guayas), la vegetación verde y la ciudad amarilla: las áreas son <b>aproximaciones</b>. Para cuantificar con valores calibrados use archivos GCOV.</p>
   <p><b>Limitaciones.</b></p><ul>${flood ? '<li>El viento puede rizar el agua y hacerla parecer tierra; la sombra de radar detrás de cerros puede parecer agua.</li><li>NISAR pasa cada 12 días: una inundación que dura horas puede no quedar registrada.</li><li>En zonas urbanas densas la detección es más difícil.</li>' : '<li>En laderas empinadas, la sombra y el escorzo del radar pueden simular cambios: confirma con focos VIIRS o imagen óptica.</li><li>La humedad del suelo cambia la señal; compara fechas de la misma estación.</li><li>El FWI no conoce el tipo de vegetación y se calibró en bosques boreales.</li>'}
   <li>Los productos NISAR PROVISIONAL y BETA están calibrados pero en validación.</li><li>Los umbrales son una primera calibración: verifícalos con reportes de campo (Segura EP, Bomberos, SNGR).</li></ul>
-  <p><b>Fuentes.</b> NISAR L2 GCOV y GUNW (NASA/JPL-Caltech e ISRO, vía ASF DAAC) · NASA Earthdata CMR · NASA GIBS y FIRMS · Open-Meteo (ECMWF/GFS, GloFAS, mareas, Copernicus DEM) · Esri. Código abierto (MIT) · ILLARI ${VERSION} · BY Anthony Cisneros a.k.a rxn1n (autor y creador).</p>`;
+  <p><b>Fuentes.</b> NISAR L2 GCOV y GUNW (NASA/JPL-Caltech e ISRO, vía ASF DAAC) · NASA Earthdata CMR · NASA GIBS y FIRMS · Open-Meteo (ECMWF/GFS, GloFAS, mareas) · relieve NASA SRTM (AWS Terrain Tiles; respaldo Copernicus DEM) · Esri. Código abierto (MIT) · ILLARI ${VERSION} · BY Anthony Cisneros a.k.a rxn1n (autor y creador).</p>`;
   $('#method').innerHTML += `<p><b>Recursos oficiales del desafío «Dancing with the SARs» usados por ILLARI</b></p><ul class="phys">
     <li>Datos: <a href="https://search.earthdata.nasa.gov/search" target="_blank" rel="noopener">NASA Earthdata Search</a> (catálogo CMR, en vivo) · <a href="https://search.asf.alaska.edu/" target="_blank" rel="noopener">ASF Vertex</a> (API de ASF, en vivo) · <a href="https://nisar-docs.asf.alaska.edu/" target="_blank" rel="noopener">Guía de usuario de datos NISAR</a> (versiones BETA, PROVISIONAL y VALIDATED; hueco del 27 jul al 10 ago 2026).</li>
     <li>Aprender: <a href="https://www.earthdata.nasa.gov/learn/earth-observation-data-basics/remote-sensing" target="_blank" rel="noopener">Introducción a la teledetección</a> · <a href="https://www.earthdata.nasa.gov/learn/earth-observation-data-basics/sar" target="_blank" rel="noopener">Introducción al SAR</a> · <a href="https://www.earthdata.nasa.gov/data/projects/arset" target="_blank" rel="noopener">Capacitaciones ARSET</a> · <a href="https://science.nasa.gov/mission/nisar/arcgis-storymaps/" target="_blank" rel="noopener">StoryMaps NISAR</a> · <a href="https://science.nasa.gov/mission/nisar/societal-benefits/" target="_blank" rel="noopener">White papers de aplicaciones</a> · <a href="https://uavsar.jpl.nasa.gov/education/postcards.html" target="_blank" rel="noopener">Postales UAVSAR</a>.</li>

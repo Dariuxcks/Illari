@@ -34,7 +34,8 @@ y el modo Estimado borde punteado ámbar. Cada vista lleva su sello y cada resul
 | NISAR L2 **GCOV** y **GUNW** originales (ASF DAAC) | Opción avanzada con valores calibrados | Earthdata Login gratuito |
 | NASA Earthdata **CMR** | Búsqueda en vivo de productos sobre cada ciudad | No |
 | NASA **GIBS** (VIIRS, IMERG) y **FIRMS** | Imagen del día, focos de calor, lluvia satelital | FIRMS opcional |
-| **Open-Meteo**: pronóstico, GloFAS, mareas, Copernicus DEM | Pronóstico y relieve | No |
+| **Open-Meteo**: pronóstico, GloFAS, mareas (respaldo de relieve: Copernicus DEM) | Pronóstico | No |
+| **NASA SRTM** vía AWS Terrain Tiles (Open Data) | Relieve y pendiente | No |
 | Esri World Imagery y World Street Map | Mapa base | No |
 
 ## Método (resumen)

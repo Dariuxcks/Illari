@@ -7,6 +7,7 @@ Fechas en hora de Ecuador. Todo el código se generó con asistencia de IA (ver 
 - Autoría: **BY Anthony Cisneros a.k.a rxn1n** (autor y creador) en la cabecera de la app, en el pie del panel, en los metadatos (`<meta name="author">`) y en las exportaciones CSV/JSON.
 - Nuevo `AUTHORS.md` con autor y coautores; `LICENSE` y `README.md` actualizados.
 - Publicación en GitHub Pages (`rxn1n.github.io/Illari`) y Vercel.
+- **Relieve más confiable:** ahora se lee de **NASA SRTM** en teselas Terrarium de AWS Open Data (sin clave ni límite de consultas). Antes, la primera visita pedía unos 8.600 puntos de elevación a Open-Meteo y podía chocar con su límite (HTTP 429), lo que dejaba el Estimado en simulación. Open-Meteo (Copernicus DEM) queda como respaldo, en serie y con reintentos. Diferencia mediana entre ambos DEM en la malla: 3 m en Guayaquil y 10 m en Quito.
 
 ## 1.4.0 · 13 nov 2026
 
