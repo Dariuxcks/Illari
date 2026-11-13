@@ -16,13 +16,29 @@ Plataforma web **de código abierto (MIT)** que convierte datos de observación 
 ILLARI **separa siempre la evidencia satelital de las estimaciones**: el modo Observado tiene borde sólido verde,
 y el modo Estimado borde punteado ámbar. Cada vista lleva su sello y cada resultado su procedencia.
 
+## Sincronizado al momento (1.5.0)
+
+Al abrir, ILLARI muestra la **Situación actual** y se actualiza sola cada 30 minutos (también con el botón **Actualizar**). Arriba del panel indica la hora de la última sincronización.
+
+| Dato en vivo | Fuente | Frecuencia / demora típica |
+|---|---|---|
+| Radar NISAR: el par comparable más reciente | NASA CMR + GIBS | cada 12 días; NASA publica días después |
+| Agua abierta (Sentinel-1), 30 últimos días | NASA OPERA DSWx | cada 2–6 días; ~1 día de demora |
+| **Lluvia medida por satélite**: últimas 3 h, 24 h y 7 días, cada 30 min | **NASA GPM IMERG** (Early y diaria, vía GIBS) | cada 30 min; ~6 h de demora |
+| Focos de calor y pérdida de vegetación | NASA VIIRS + OPERA DIST | diaria |
+| Lluvia, caudal de ríos y marea: últimos 30 días + 16 días de pronóstico | Open-Meteo, GloFAS | horaria |
+
+- El **titular** del modo Observado es lo que el radar NISAR detecta **y otro satélite de NASA confirma** (Sentinel-1 para agua; VIIRS + DIST para fuego). Lo que ve solo el radar aparece aparte, marcado «solo radar».
+- **Lluvia medida frente a modelada:** la tarjeta IMERG pone lado a lado la lluvia observada por satélite y la que reconstruye el modelo que alimenta el pronóstico.
+- **Robustez:** si NASA GIBS falla de forma pasajera, ILLARI reintenta, usa otra fecha válida y lo explica, sin pasar a la escena simulada. Las diferencias de calibración entre fechas (p. ej. PROVISIONAL frente a VALIDATED) se descuentan con una normalización local de ~7 km.
+
 ## Uso
 
 - **Sin instalación:** abre `index.html` con doble clic en Chrome o Edge. No hay servidor, cuentas ni claves.
 - **Conexión directa a datos reales:** al abrirse, ILLARI consulta en vivo:
   - las pasadas del radar NISAR sobre la ciudad (catálogo público NASA CMR);
   - las imágenes NISAR de NASA GIBS, que compara antes y después de un evento;
-  - el pronóstico de Open-Meteo.
+  - la lluvia medida por satélite (NASA GPM IMERG), los mapas de agua de Sentinel-1 (OPERA), los focos VIIRS y el pronóstico de Open-Meteo.
 - **Sin descargas:** no hay que descargar nada. Si no hay internet, muestra una escena simulada marcada como tal.
 - **Opción avanzada:** el botón **Catálogo NASA** permite además abrir archivos GCOV/GUNW originales para trabajar con valores calibrados.
 
@@ -33,7 +49,8 @@ y el modo Estimado borde punteado ámbar. Cada vista lleva su sello y cada resul
 | **NISAR GCOV en NASA GIBS** (capa diaria `NISAR_L2_Geocoded_Polarimetric_Covariance`, desde el 29 oct 2025, falso color HH/HV, 15,6 m; fechas, órbita y polarización de cada pasada desde NASA CMR) | Imágenes de radar en vivo y detección de cambios | **No** |
 | NISAR L2 **GCOV** y **GUNW** originales (ASF DAAC) | Opción avanzada con valores calibrados | Earthdata Login gratuito |
 | NASA Earthdata **CMR** | Búsqueda en vivo de productos sobre cada ciudad | No |
-| NASA **GIBS** (VIIRS, IMERG) y **FIRMS** | Imagen del día, focos de calor, lluvia satelital | FIRMS opcional |
+| **NASA GPM IMERG** (GIBS: `IMERG_Precipitation_Rate_30min` y diaria; paleta oficial `GPM_Precipitation_Rate`) | Lluvia observada: 3 h, 24 h, 7 y 30 días | No |
+| NASA **GIBS** (VIIRS) y **FIRMS** | Imagen del día, focos de calor | FIRMS opcional |
 | **Open-Meteo**: pronóstico, GloFAS, mareas (respaldo de relieve: Copernicus DEM) | Pronóstico | No |
 | **NASA SRTM** vía AWS Terrain Tiles (Open Data) | Relieve y pendiente | No |
 | Esri World Imagery y World Street Map | Mapa base | No |

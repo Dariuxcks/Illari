@@ -2,6 +2,25 @@
 
 Fechas en hora de Ecuador. Todo el código se generó con asistencia de IA (ver `USO_DE_IA.md`).
 
+## 1.5.0 · 13 nov 2026 · sincronizado al momento
+
+- **Situación actual** como vista inicial en Guayaquil y Quito:
+  - toma el par NISAR comparable más reciente;
+  - muestra la serie de agua de Sentinel-1 (OPERA) de los últimos 30 días, los focos VIIRS de los últimos 7 días y el último mapa DIST.
+- **Lluvia medida por satélite con NASA GPM IMERG**, vía GIBS y sin clave:
+  - últimas 3 h, últimas 24 h (barras cada 30 min) y últimos 7 días;
+  - comparación día por día con la lluvia que reconstruye el modelo.
+  - Se decodifica con la paleta oficial de GIBS (220 clases, copiada con verificación SHA-256). La capa diaria ×24 coincide con la suma de sus medias horas (21,0 frente a 20,1 mm el 4 nov).
+- **Actualización automática** cada 30 minutos y al volver a la pestaña, más el botón «Actualizar». La hora de la última sincronización está siempre visible.
+- **Titular confirmado:** el indicador principal del Observado es lo que NISAR detecta y otro satélite de NASA confirma; lo que ve solo el radar se muestra aparte.
+- **Normalización radiométrica local (~7 km):** descuenta cambios de brillo que no son agua ni fuego (calibración PROVISIONAL frente a VALIDATED, humedad). En Quito, el par 19 → 31 oct bajó de 553 km² de «posible quemado» a 51 km², y el titular confirmado da 0 ha. Se prefieren pares de la misma versión del producto.
+- **Corrección:** los focos VIIRS ya no borran píxeles quemados antes de contar la vegetación (Casitagua: 401 ha en vegetación natural).
+- **Robustez ante fallas pasajeras de NASA GIBS:**
+  - reintentos con espera y una imagen más chica si la grande falla;
+  - si una fecha no responde, se usa otra fecha válida;
+  - nunca se pasa a la escena simulada mientras el catálogo de NASA responda;
+  - si una actualización falla, se conserva la última lectura buena.
+
 ## 1.4.1 · 13 nov 2026
 
 - Autoría: **BY Anthony Cisneros a.k.a rxn1n** (autor y creador) en la cabecera de la app, en el pie del panel, en los metadatos (`<meta name="author">`) y en las exportaciones CSV/JSON.
