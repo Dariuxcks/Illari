@@ -1009,6 +1009,14 @@ function renderBanner() {
     if (D.mode === 'demo') setBanner('demo', 'Pronóstico simulado', `No se pudo conectar con los servicios de pronóstico (${D.err || 'sin conexión'}). Datos simulados; no los uses para decidir.`);
     else setBanner('est', 'Estimado', `Pronóstico de modelos (Open-Meteo${S.hz === 'flood' ? ', GloFAS y mareas' : ', índice FWI'}) para los próximos ${D.days.length - 1 - D.iToday} días. Es una estimación, no una observación.`); }
 }
+// Titular «confirmado»: lo que el radar NISAR detecta Y otro satélite de NASA ve también (Sentinel-1/OPERA para agua; VIIRS + OPERA DIST para fuego).
+function confKpis(flood, kp, ap, km) { const O = S.obs[S.hz], M = S.multi[S.hz]; if (!O || O.source !== 'gibs') return '';
+  const box = (l, v, u, sub) => `<div class="kpi" style="grid-column:1/-1;border:2px solid var(--obs)"><div class="l">${l}</div><div class="v" style="color:var(--obs)">${v}<small>${u}</small></div>${sub ? `<div class="l" style="margin-top:4px;text-transform:none;letter-spacing:0">${sub}</div>` : ''}</div>`;
+  if (!M || M.status === 'loading') return box('Confirmado por otro satélite de NASA', '…', '', 'contrastando con ' + (flood ? 'Sentinel-1 (OPERA)' : 'VIIRS y OPERA DIST'));
+  if (M.status !== 'ok') return box('Confirmado por otro satélite de NASA', '—', '', escapeHtml(M.err || 'sin datos para contrastar'));
+  if (flood && M.flood) { const k = M.flood.km, all = km(2) + km(3); return box('Agua nueva confirmada · NISAR + Sentinel-1', ap + nf(k.conf, 1), 'km²', `${all ? nf(k.conf / all * 100, 0) : 0} % de lo que marca el radar solo · Sentinel-1 ve ${nf(k.newS1, 1)} km² de agua abierta nueva (${fmtDate(M.flood.bS.date)} → ${fmtDate(M.flood.aS.date)})`); }
+  if (!flood && M.fire) { const d = M.fire.dist, n = M.fire.hs.length; return box('Quemado confirmado · NISAR + VIIRS + OPERA DIST', d ? ap + nf(d.km.nisConf * 100, 0) : '0', 'ha', `${n} focos VIIRS ${M.now ? 'en los últimos 7 días' : 'alrededor del evento'}${d ? ` · DIST: ${nf((d.km.nat ?? d.km.fuego) * 100, 0)} ha de vegetación perdida junto a los focos` : ''}`); }
+  return ''; }
 function renderObs() {
   const O = S.obs[S.hz], cfg = CITIES[S.hz]; if (!O) return;
   const opt = other => (a, i) => { const bad = other && i !== O.acqs.indexOf(other) && !compat(a, other).ok; return `<option value="${i}">${a.cov0 != null && a.cov0 < 0.5 ? '◔ ' : ''}${fmtDate(a.date, 'y')} · ${a.prod === 'GUNW' ? 'coherencia ' + fmtDate(a.d1) + '→' + fmtDate(a.d2) : a.prod === 'GIBS' ? 'NISAR' : 'GCOV'}${a.track ? ' · T' + a.track + ' ' + (a.dir || '') : ''}${a.pol ? ' · ' + a.pol : ''}${bad ? ' · ✕ no comparable' : ''}</option>`; };
@@ -1036,8 +1044,8 @@ function renderObs() {
   const ap = O.source !== 'demo' ? '≈ ' : '', kp = (l, v, u, c = '') => `<div class="kpi"><div class="l">${l}</div><div class="v" ${c ? `style="color:${c}"` : ''}>${v}<small>${u}</small></div></div>`;
   const simTop = O.source === 'demo' ? `<div class="simbox"><b>SIMULACIÓN · no son mediciones.</b> ${O.autoFallback ? 'ILLARI no pudo conectar con NASA y muestra una escena de práctica.' : 'Escena de práctica elegida por el usuario.'} <button class="btn" id="oRetry" type="button" style="height:26px;margin-left:6px">Conectar con NASA</button></div>` : '';
   $('#oKpis').innerHTML = simTop + (R.kind === 'GUNW' ? kp('Pérdida de coherencia', ap + nf(km(6), 1), 'km²', OBS_CLASSES[6][1]) + kp('Sectores con cambio (≥ 5 %)', aff, `de ${R.sec.length}`) + kp('Antes', fmtDate(a.date), '') + kp('Después', fmtDate(b.date), '')
-    : flood ? kp('Posible agua nueva', ap + nf(km(2), 1), 'km²', OBS_CLASSES[2][1]) + kp('Posible inundación bajo vegetación o edificios', ap + nf(km(3), 1), 'km²', OBS_CLASSES[3][1]) + kp('Agua en ambas fechas (ríos, esteros)', ap + nf(km(1), 1), 'km²') + kp('Sectores con cambio (≥ 5 %)', aff, `de ${R.sec.length}`)
-    : kp('Posible área quemada', ap + nf(km(5) * 100, 0), 'ha', OBS_CLASSES[5][1]) + kp('Equivale a', ap + nf(km(5), 2), 'km²') + kp('Sectores con cambio (≥ 5 %)', aff, `de ${R.sec.length}`) + kp('Días entre fechas', nf((Date.parse(b.date) - Date.parse(a.date)) / 864e5, 0), 'días'));
+    : confKpis(flood, kp, ap, km) + (flood ? kp('Posible agua nueva · solo radar', ap + nf(km(2), 1), 'km²', OBS_CLASSES[2][1]) + kp('Posible inundación bajo vegetación o edificios · solo radar', ap + nf(km(3), 1), 'km²', OBS_CLASSES[3][1]) + kp('Agua en ambas fechas (ríos, esteros)', ap + nf(km(1), 1), 'km²') + kp('Sectores con cambio (≥ 5 %)', aff, `de ${R.sec.length}`)
+    : kp('Posible área quemada · solo radar', ap + nf(km(5) * 100, 0), 'ha', OBS_CLASSES[5][1]) + kp('Equivale a', ap + nf(km(5), 2), 'km²') + kp('Sectores con cambio (≥ 5 %)', aff, `de ${R.sec.length}`) + kp('Días entre fechas', nf((Date.parse(b.date) - Date.parse(a.date)) / 864e5, 0), 'días')));
   { const r = $('#oRetry'); if (r) r.onclick = () => { S.obs[S.hz] = { source: 'loading', acqs: [], NX: 2, NY: 2, bbox: CITIES[S.hz].bbox, A: 0, B: 0, chg: 3 }; renderPanel(); loadObsLive(S.hz); }; }
   $('#oNote').innerHTML = `${O.source === 'demo' ? '<b>Valores de una escena simulada.</b> ' : `<b>Aproximación sin validación independiente.</b> ${R.kind === 'GIBS' ? 'Calculada sobre la visualización en falso color de NASA (8 bits), no sobre valores calibrados. ' : ''}Confírmala con reportes de campo antes de difundirla. `}Cambio entre el <b>${fmtDate(a.date, 'y')}</b> y el <b>${fmtDate(b.date, 'y')}</b>${R.pol ? ` (${R.pol})` : ''}. ${R.warn.join(' ')}${O.demMasked * pixKm2(O.bbox, O.NX, O.NY) >= 0.05 ? ` Se descartaron ${nf(O.demMasked * pixKm2(O.bbox, O.NX, O.NY), 1)} km² sobre 25 m de altura (cerros).` : ''}`;
   $('#oSec').innerHTML = '<thead><tr><th>Sector</th><th style="text-align:right">km²</th><th style="text-align:right">% del entorno</th></tr></thead><tbody>' +
@@ -1378,7 +1386,7 @@ async function loadMulti(hz) {
       M.expo = hz === 'flood' ? exposure(O, C, i => M.cls[i] === 2 || M.cls[i] === 3) : exposure(O, C, i => M.cls[i] === 3 || M.cls[i] === 6 || M.cls[i] === 9); } catch (e) { M.expo = null; }
     M.status = 'ok';
   } catch (e) { M.status = 'error'; M.err = e.message; }
-  if (S.multi[hz] === M) { S.cache.clear(); if (S.hz === hz) { renderMulti(); renderPhysics(); draw(); renderLegend(); } }
+  if (S.multi[hz] === M) { S.cache.clear(); if (S.hz === hz) { renderMulti(); renderPhysics(); draw(); renderLegend(); if (S.mode === 'obs') renderObs(); } }
 }
 async function viirsDaily(bb, d0, d1) {   // píxeles de foco por día (las dos plataformas VIIRS), imagen liviana
   const jobs = []; for (let d = d0; d <= d1; d = addDays(d, 1)) for (const L of OPERA.viirs) jobs.push([L, d]); const fd = new Map();
