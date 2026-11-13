@@ -612,7 +612,7 @@ function detect(hz) {
   const gap = Math.round((Date.parse(b.date) - Date.parse(a.date)) / 864e5); if (gap > 36) warn.push(`Hay ${gap} días entre las dos fechas: los cambios de estación (humedad, cultivos) también aparecen como cambio.`);
   if (O.event && b.date >= O.event && (Date.parse(b.date) - Date.parse(O.event)) / 864e5 > 6) warn.push(`La primera pasada después del evento fue ${Math.round((Date.parse(b.date) - Date.parse(O.event)) / 864e5)} días más tarde: parte del agua pudo haberse retirado.`);
   if (a.prod === 'GIBS') {
-    if (!a.rgba || !b.rgba) { O.err = 'Cargando imágenes NISAR…'; return; }
+    if (!a.rgba || !b.rgba) { O.err = O.gibsFail ? O.gibsMsg : 'Cargando imágenes NISAR…'; return; }
     const lv = O.chg * 10; pre = new Float32Array(N); post = new Float32Array(N); diff = new Float32Array(N); let both = 0;
     // canales suavizados 5×5 (equivale a filtrar el moteado del radar) para no confundir ruido con cambio
     const chan = (d, k) => { const o = new Float32Array(N); for (let i = 0; i < N; i++) { const j = i * 4; o[i] = d[j + 3] && d[j] + d[j + 1] + d[j + 2] ? d[j + k] : NaN; } return boxMean(o, NX, NY, 5); };
@@ -1202,7 +1202,7 @@ $('#oSource').onchange = e => { const v = e.target.value, hz = S.hz;
   S.obs[hz] = { source: 'loading', acqs: [], NX: 2, NY: 2, bbox: CITIES[hz].bbox, A: 0, B: 0, chg: 3 }; renderPanel(); loadObsLive(hz); };
 $('#oEvent').onchange = async e => { const O = S.obs[S.hz], ev = e.target.value; if (!ev || !O || !O.acqs.length) return; O.event = ev;
   if (O.source !== 'gibs') { renderObs(); return; } const [A, B] = pairForEvent(O.acqs, evDate(ev)); O.A = A; O.B = B;
-  setBanner('obs', 'Conectando', ev === NOW_EV ? 'Cargando las dos pasadas comparables más recientes de NISAR…' : 'Cargando las pasadas de NISAR antes y después del evento…'); try { await Promise.all([ensureAcq(O, A), ensureAcq(O, B)]); } catch (err) { O.err = err.message; } obsChanged(); loadMulti(S.hz); };
+  setBanner('obs', 'Conectando', ev === NOW_EV ? 'Cargando las dos pasadas comparables más recientes de NISAR…' : 'Cargando las pasadas de NISAR antes y después del evento…'); O.gibsFail = false; try { await Promise.all([ensureAcq(O, A), ensureAcq(O, B)]); } catch (err) { O.gibsFail = true; O.gibsMsg = `NASA GIBS no entregó una de las imágenes NISAR (falla pasajera: ${err.message.slice(0, 90)}). Pulsa «Actualizar» en unos minutos o elige otras fechas.`; } obsChanged(); loadMulti(S.hz); };
 
 async function ensurePred(hz) {
   if (S.data[hz]) return; if (S.loading?.[hz]) return S.loading[hz];
@@ -1237,7 +1237,7 @@ const merc = (lat, lon) => [6378137 * lon * Math.PI / 180, 6378137 * Math.log(Ma
 function wmsUrl(layer, date, bb, W, H) { const [x0, y0] = merc(bb.s, bb.w), [x1, y1] = merc(bb.n, bb.e);
   return `${GIBS_WMS}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=${layer}&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=TRUE&CRS=EPSG%3A3857&BBOX=${x0.toFixed(1)},${y0.toFixed(1)},${x1.toFixed(1)},${y1.toFixed(1)}&WIDTH=${W}&HEIGHT=${H}${date ? '&TIME=' + date : ''}`; }
 // GIBS a veces responde «Unable to access file» de forma pasajera: un reintento a los 1,5 s suele bastar.
-async function fetchPixels(url, ms = 30000) { try { return await fetchPixels1(url, ms); } catch (e) { if (!/^NASA respondió|^HTTP 5/.test(e.message)) throw e; await new Promise(r => setTimeout(r, 1500)); return fetchPixels1(url, ms); } }   // sin conexión no se reintenta
+async function fetchPixels(url, ms = 30000) { for (let k = 0; ; k++) { try { return await fetchPixels1(url, ms); } catch (e) { if (k >= 2 || !/^NASA respondió|^HTTP 5/.test(e.message)) throw e; await new Promise(r => setTimeout(r, 1500 * (k + 1))); } } }   // sin conexión no se reintenta
 async function fetchPixels1(url, ms) {
   const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), ms);
   try { const r = await srcFetch(url, { signal: ctl.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); const ct = r.headers.get('content-type') || '';
@@ -1298,7 +1298,8 @@ function pairForEvent(acqs, ev) {
 }
 async function ensureAcq(O, i) {
   const a = O.acqs[i]; if (!a || a.rgba || a.prod !== 'GIBS') return; const bb = O.bbox, [x0, y0] = merc(bb.s, bb.w), [x1, y1] = merc(bb.n, bb.e), W = 900, H = Math.round(W * (y1 - y0) / (x1 - x0));
-  const url = wmsUrl(NISAR_LAYER, a.date, bb, W, H), img = await fetchPixels(url), g = sampleToGrid(img, bb, O.NX, O.NY);
+  let url = wmsUrl(NISAR_LAYER, a.date, bb, W, H), img; try { img = await fetchPixels(url); } catch (e) { url = wmsUrl(NISAR_LAYER, a.date, bb, 600, Math.round(600 * H / W)); img = await fetchPixels(url); }
+  const g = sampleToGrid(img, bb, O.NX, O.NY);
   a.rgba = g.rgba; a.cov = g.cov; a.url = url; a.layer = NISAR_LAYER; a.resp = { w: img.w, h: img.h, t: new Date().toISOString() };
 }
 async function loadObsLive(hz, keepEv) {
@@ -1309,13 +1310,16 @@ async function loadObsLive(hz, keepEv) {
     if (passes.length < 2) { via = 'GIBS'; passes = await scanPasses(bb); }
     if (passes.length < 2) throw new Error('no se encontraron dos pasadas de NISAR sobre la ciudad');
     const O = { source: 'gibs', via, NX, NY, bbox: bb, acqs: passes.map(p => ({ prod: 'GIBS', ...p, file: p.title || `NASA GIBS · ${NISAR_LAYER}`, rgba: null })), ...obsDefaults(hz), chg: hz === 'flood' ? 5 : 3, notes: [], connectedAt: new Date().toISOString() };
-    const ev = keepEv || EVENTS[hz][0][1], [A, B] = pairForEvent(O.acqs, evDate(ev)); O.A = A; O.B = B; O.event = ev;
-    await Promise.all([ensureAcq(O, A), ensureAcq(O, B)]);
+    const ev = keepEv || EVENTS[hz][0][1]; O.event = ev; let [A, B] = pairForEvent(O.acqs, evDate(ev)); O.A = A; O.B = B;
+    // Si NASA GIBS falla con una fecha, se prueba el siguiente par comparable más reciente (hasta 3) en vez de caer a la simulación.
+    for (let tries = 0; ; tries++) { try { await Promise.all([ensureAcq(O, A), ensureAcq(O, B)]); O.A = A; O.B = B; break; } catch (e) {
+      if (tries >= 2) { O.A = A; O.B = B; O.gibsMsg = `NASA GIBS no entregó la imagen NISAR (falla pasajera de su servidor: ${e.message.slice(0, 90)}). ILLARI reintentará en la próxima sincronización; también puedes pulsar «Actualizar» o elegir otras fechas.`; O.gibsFail = true; break; }
+      const sub = O.acqs.slice(0, B); const [A2, B2] = pairForEvent(sub, null); if (B2 == null || B2 >= B || A2 === B2) { tries = 2; continue; } A = A2; B = B2; O.notes.push('Se usó un par anterior porque NASA GIBS no entregó una de las imágenes más recientes.'); } }
     S.obs[hz] = O; detect(hz); loadMulti(hz); nisarSeries(hz);
   } catch (err) { console.warn(err); if (keepEv && S.obs[hz]?.source === 'gibs') S.obs[hz].err = 'No se pudo actualizar desde NASA: ' + err.message + '. Se mantienen las pasadas anteriores.'; else { const D = demoObs(hz); D.err0 = err.message; D.autoFallback = true; S.obs[hz] = D; detect(hz); } }
   if (S.hz === hz) { S.cache.clear(); renderPanel(); draw(); }
 }
-async function selectObs(which, i) { const O = S.obs[S.hz]; O[which] = i; if (O.source === 'gibs' && compat(O.acqs[O.A], O.acqs[O.B]).ok) { O.err = null; setBanner('obs', 'Conectando', `Cargando la imagen NISAR del ${fmtDate(O.acqs[i].date, 'y')} desde NASA…`); try { await ensureAcq(O, i); } catch (e) { O.err = 'No se pudo cargar esa fecha: ' + e.message; } } obsChanged(); }
+async function selectObs(which, i) { const O = S.obs[S.hz]; O[which] = i; if (O.source === 'gibs' && compat(O.acqs[O.A], O.acqs[O.B]).ok) { O.err = null; setBanner('obs', 'Conectando', `Cargando la imagen NISAR del ${fmtDate(O.acqs[i].date, 'y')} desde NASA…`); O.gibsFail = false; try { await ensureAcq(O, i); } catch (e) { O.gibsFail = true; O.gibsMsg = 'NASA GIBS no entregó esa fecha (falla pasajera de su servidor): ' + e.message.slice(0, 90) + '. Prueba de nuevo en unos minutos o elige otra.'; } } obsChanged(); }
 
 /* ============================================================================ CONFIRMACIÓN MULTISENSOR (NASA OPERA + VIIRS) */
 // Productos clasificados y validados de NASA, sin clave, por GIBS. Paletas oficiales (OPERA DSWx-S1/HLS y DIST-ALERT, JPL/UMD):
@@ -1815,7 +1819,7 @@ async function syncAll(manual) {
   // Radar: solo si la vista está en «Situación actual» y en vivo (no se toca una escena guardada ni una elección manual).
   for (const hz of ['flood', 'fire']) { const O = S.obs[hz]; if (!O || O.source !== 'gibs' || O.savedAt || O.event !== NOW_EV) continue;
     if (hz === S.hz) jobs.push((async () => { let fresh = null; try { fresh = await cmrPasses(O.bbox); } catch (e) {}
-      if (fresh && fresh.length && fresh.at(-1).date !== O.acqs.at(-1)?.date) { S.multi[hz] = null; await loadObsLive(hz, NOW_EV); } else await loadMulti(hz); })());
+      if (O.gibsFail || fresh && fresh.length && fresh.at(-1).date !== O.acqs.at(-1)?.date) { S.multi[hz] = null; await loadObsLive(hz, NOW_EV); } else await loadMulti(hz); })());
     else { delete S.obs[hz]; S.multi[hz] = null; } }
   const res = await Promise.allSettled(jobs); const bad = res.filter(r => r.status === 'rejected');
   if (S.rain?.status === 'error') S.sync.err = 'IMERG no respondió'; else if (S.rain?.staleErr) S.sync.err = 'IMERG no respondió; se muestra la lectura anterior'; else if (bad.length) S.sync.err = bad.length + ' consultas fallaron';
