@@ -763,7 +763,7 @@ function srcOf(url) { const u = String(url);
   return null; }
 function srcMark(url, st) { const k = srcOf(url); if (!k) return; const prev = SRC.get(k[0]) || { n: 0, fails: 0 };
   const e = { ...prev, key: k[0], name: k[1], ...st, t: new Date(), url: String(url).replace(/(api\/area\/csv\/)[^/]+/, '$1[clave]') };
-  if (st.status === 'ok') e.n = prev.n + 1; if (st.status === 'error') e.fails = prev.fails + 1; SRC.set(k[0], e); if (typeof renderSources === 'function') renderSources(); }
+  if (st.status === 'ok') { e.n = prev.n + 1; if (!('msg' in st)) delete e.msg; } if (st.status === 'error') e.fails = prev.fails + 1; SRC.set(k[0], e); if (typeof renderSources === 'function') renderSources(); }
 async function srcFetch(url, opt) { srcMark(url, { status: 'pending' });
   try { const r = await fetch(url, opt); srcMark(url, r.ok ? { status: 'ok', http: r.status } : { status: 'error', http: r.status, msg: 'HTTP ' + r.status }); return r; }
   catch (e) { srcMark(url, { status: 'error', http: null, msg: e.name === 'AbortError' ? 'tiempo de espera agotado' : 'sin conexión o bloqueado por la red' }); throw e; } }
@@ -1239,7 +1239,7 @@ function wmsUrl(layer, date, bb, W, H) { const [x0, y0] = merc(bb.s, bb.w), [x1,
 async function fetchPixels(url, ms = 30000) {
   const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), ms);
   try { const r = await srcFetch(url, { signal: ctl.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); const ct = r.headers.get('content-type') || '';
-    if (!/image/.test(ct)) { const msg = 'NASA respondió: ' + (await r.text()).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140); srcMark(url, { status: 'error', http: r.status, msg }); throw new Error(msg); }
+    if (!/image/.test(ct)) { const msg = 'NASA respondió: ' + (await r.text()).replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim().slice(0, 140); srcMark(url, { status: 'error', http: r.status, msg }); throw new Error(msg); }
     const bmp = await createImageBitmap(await r.blob()), cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height; const c = cv.getContext('2d'); c.drawImage(bmp, 0, 0);
     return { data: c.getImageData(0, 0, bmp.width, bmp.height).data, w: bmp.width, h: bmp.height }; }
   finally { clearTimeout(tm); }
@@ -1749,12 +1749,12 @@ async function imergFrame(layer, time) {   // → Float32Array mm/h por píxel, 
 function imergCells(bb) { const out = []; for (let r = 0; r < IMERG.H; r++) for (let c = 0; c < IMERG.W; c++) { const lo = IMERG.bb.w + (c + 0.5) * 0.1, la = IMERG.bb.n - (r + 0.5) * 0.1; if (lo >= bb.w - 0.05 && lo <= bb.e + 0.05 && la >= bb.s - 0.05 && la <= bb.n + 0.05) out.push(r * IMERG.W + c); } return out; }
 const isoHH = t => new Date(t).toISOString().slice(0, 19) + 'Z';
 async function loadRain(force) {
-  if (S.rain && S.rain.status === 'loading') return; if (S.rain && S.rain.status === 'ok' && !force) return;
-  const R = { status: 'loading', t: new Date() }; S.rain = R; renderRain();
+  if (S.rain && (S.rain.status === 'loading' || S.rain.refreshing)) return; if (S.rain && S.rain.status === 'ok' && !force) return;
+  const prev = S.rain && S.rain.status === 'ok' ? S.rain : null, R = { status: 'loading', t: new Date() }; S.rain = prev ? { ...prev, refreshing: true } : R; if (!prev) renderRain();
   try {
     // 1) Último momento publicado (IMERG Early tarda ~4–7 h): se busca hacia atrás de 30 en 30 minutos.
     let t = Math.floor((Date.now() - 2.5 * 3600e3) / 1800e3) * 1800e3, last = null;
-    for (let k = 0; k < 24 && !last; k++, t -= 1800e3) { if (await imergFrame(IMERG.h, isoHH(t))) last = t; }
+    for (let k = 0; k < 24 && !last; k++, t -= 1800e3) { try { if (await imergFrame(IMERG.h, isoHH(t))) last = t; } catch (e) {} }   // GIBS a veces lista un momento cuyo archivo aún no existe: se trata como no publicado
     if (!last) throw new Error('NASA no publicó IMERG de 30 minutos en las últimas 14 horas');
     const times = Array.from({ length: 48 }, (_, i) => last - (47 - i) * 1800e3), frames = new Array(48);
     await Promise.all(Array.from({ length: 6 }, async (_, w) => { for (let i = w; i < 48; i += 6) { try { frames[i] = await imergFrame(IMERG.h, isoHH(times[i])); } catch (e) { frames[i] = null; } } }));
@@ -1768,7 +1768,8 @@ async function loadRain(force) {
       R.city[hz] = { n: cells.length, hh, h24, h3, max24: pk, rateNow: hh.at(-1), missing: frames.filter(f => !f).length, days: days.map((d, i) => ({ date: d, mm: dly[i] ? mean(dly[i]) * 24 : NaN, max: dly[i] ? mx(dly[i]) * 24 : NaN })) }; }
     R.status = 'ok';
   } catch (e) { R.status = 'error'; R.err = e.message; }
-  if (S.rain === R) renderRain();
+  // Si la actualización falla, se conservan los datos anteriores (con su hora) en lugar de borrarlos.
+  S.rain = R.status === 'ok' || !prev ? R : { ...prev, staleErr: R.err }; if (R.status === 'ok') delete R.staleErr; renderRain();
 }
 function modelRain(hz, date) { const D = S.data[hz]; if (!D || D.mode === 'demo' || !D.raw) return NaN; const nW = CITIES[hz].wgrid[0] * CITIES[hz].wgrid[1];
   if (D.raw.kind === 'flood') { const v = D.raw.R.slice(0, nW).map(L => L.p[L.dates.indexOf(date)]).filter(Number.isFinite); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN; }
@@ -1810,7 +1811,7 @@ async function syncAll(manual) {
       if (fresh && fresh.length && fresh.at(-1).date !== O.acqs.at(-1)?.date) { S.multi[hz] = null; await loadObsLive(hz, NOW_EV); } else await loadMulti(hz); })());
     else { delete S.obs[hz]; S.multi[hz] = null; } }
   const res = await Promise.allSettled(jobs); const bad = res.filter(r => r.status === 'rejected');
-  if (S.rain?.status === 'error') S.sync.err = 'IMERG: ' + S.rain.err; else if (bad.length) S.sync.err = bad.length + ' consultas fallaron';
+  if (S.rain?.status === 'error') S.sync.err = 'IMERG no respondió'; else if (S.rain?.staleErr) S.sync.err = 'IMERG no respondió; se muestra la lectura anterior'; else if (bad.length) S.sync.err = bad.length + ' consultas fallaron';
   S.sync.at = new Date(); S.sync.next = new Date(Date.now() + SYNC_MS); S.sync.busy = false; renderSync(); if (manual || S.mode === 'pred') { renderPanel(); draw(); } }
 $('#syncNow').onclick = () => syncAll(true);
 setInterval(() => { if (!document.hidden) syncAll(); }, SYNC_MS);
