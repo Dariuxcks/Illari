@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <!--
   ILLARI 1.5.0 · BY Anthony Cisneros a.k.a rxn1n (autor y creador) · https://github.com/Rxn1n
-  Coautores: ver AUTHORS.md · Licencia MIT · https://opensource.org/license/mit
+  Coautores: María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano, Darío Proaño · Licencia MIT · https://opensource.org/license/mit
   USO DE INTELIGENCIA ARTIFICIAL (requisito de NASA Space Apps): el código de este archivo fue generado y revisado
   con asistencia de Claude (Anthropic), un modelo de IA generativa, entre octubre y noviembre de 2026, a pedido del
   equipo ILLARI. El equipo es responsable de verificarlo. Detalle en USO_DE_IA.md y CHANGELOG.md.
 -->
-<meta name="author" content="Anthony Cisneros a.k.a rxn1n">
+<meta name="author" content="Anthony Cisneros a.k.a rxn1n; coautores: María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano, Darío Proaño">
 <meta name="ai-generated" content="Código generado con asistencia de IA (Claude, Anthropic); ver USO_DE_IA.md">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <!--IL-BODY-START-->
@@ -529,7 +529,7 @@ self.onmessage = async e => {
    OBSERVADO: cambios detectados en imágenes de radar (GCOV retrodispersión / GUNW coherencia).
    ESTIMADO: pronóstico de peligro a 16 días (Open-Meteo, GloFAS, mareas, FWI).
    Archivo único, sin dependencias, sin claves. Licencia MIT.
-   BY Anthony Cisneros a.k.a rxn1n — autor y creador (https://github.com/Rxn1n). Coautores en AUTHORS.md.
+   BY Anthony Cisneros a.k.a rxn1n — autor y creador (https://github.com/Rxn1n). Coautores: María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano, Darío Proaño.
    ========================================================================== */
 const VERSION = '1.5.0';
 const $ = s => document.querySelector(s);
@@ -1158,7 +1158,7 @@ function renderMethod() {
   <p><b>Modo en vivo.</b> ILLARI pide a NASA CMR las pasadas de NISAR (fecha, hora, track, dirección, frame y polarización) y a NASA GIBS el mosaico diario en falso color. Solo compara dos fechas con la misma geometría y el mismo modo de polarización; si no, bloquea la comparación. Sobre la imagen de 8 bits, el agua es oscura y azulada (calibrado con el río Guayas), la vegetación verde y la ciudad amarilla: las áreas son <b>aproximaciones</b>. Para cuantificar con valores calibrados use archivos GCOV.</p>
   <p><b>Limitaciones.</b></p><ul>${flood ? '<li>El viento puede rizar el agua y hacerla parecer tierra; la sombra de radar detrás de cerros puede parecer agua.</li><li>NISAR pasa cada 12 días: una inundación que dura horas puede no quedar registrada.</li><li>En zonas urbanas densas la detección es más difícil.</li>' : '<li>En laderas empinadas, la sombra y el escorzo del radar pueden simular cambios: confirma con focos VIIRS o imagen óptica.</li><li>La humedad del suelo cambia la señal; compara fechas de la misma estación.</li><li>El FWI no conoce el tipo de vegetación y se calibró en bosques boreales.</li>'}
   <li>Los productos NISAR PROVISIONAL y BETA están calibrados pero en validación.</li><li>Los umbrales son una primera calibración: verifícalos con reportes de campo (Segura EP, Bomberos, SNGR).</li></ul>
-  <p><b>Fuentes.</b> NISAR L2 GCOV y GUNW (NASA/JPL-Caltech e ISRO, vía ASF DAAC) · NASA Earthdata CMR · NASA GIBS y FIRMS · Open-Meteo (ECMWF/GFS, GloFAS, mareas) · relieve NASA SRTM (AWS Terrain Tiles; respaldo Copernicus DEM) · Esri. Código abierto (MIT) · ILLARI ${VERSION} · BY Anthony Cisneros a.k.a rxn1n (autor y creador).</p>`;
+  <p><b>Fuentes.</b> NISAR L2 GCOV y GUNW (NASA/JPL-Caltech e ISRO, vía ASF DAAC) · NASA Earthdata CMR · NASA GIBS y FIRMS · Open-Meteo (ECMWF/GFS, GloFAS, mareas) · relieve NASA SRTM (AWS Terrain Tiles; respaldo Copernicus DEM) · Esri. Código abierto (MIT) · ILLARI ${VERSION} · BY Anthony Cisneros a.k.a rxn1n (autor y creador) · Coautores: María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano, Darío Proaño.</p>`;
   $('#method').innerHTML += `<p><b>Recursos oficiales del desafío «Dancing with the SARs» usados por ILLARI</b></p><ul class="phys">
     <li>Datos: <a href="https://search.earthdata.nasa.gov/search" target="_blank" rel="noopener">NASA Earthdata Search</a> (catálogo CMR, en vivo) · <a href="https://search.asf.alaska.edu/" target="_blank" rel="noopener">ASF Vertex</a> (API de ASF, en vivo) · <a href="https://nisar-docs.asf.alaska.edu/" target="_blank" rel="noopener">Guía de usuario de datos NISAR</a> (versiones BETA, PROVISIONAL y VALIDATED; hueco del 27 jul al 10 ago 2026).</li>
     <li>Aprender: <a href="https://www.earthdata.nasa.gov/learn/earth-observation-data-basics/remote-sensing" target="_blank" rel="noopener">Introducción a la teledetección</a> · <a href="https://www.earthdata.nasa.gov/learn/earth-observation-data-basics/sar" target="_blank" rel="noopener">Introducción al SAR</a> · <a href="https://www.earthdata.nasa.gov/data/projects/arset" target="_blank" rel="noopener">Capacitaciones ARSET</a> · <a href="https://science.nasa.gov/mission/nisar/arcgis-storymaps/" target="_blank" rel="noopener">StoryMaps NISAR</a> · <a href="https://science.nasa.gov/mission/nisar/societal-benefits/" target="_blank" rel="noopener">White papers de aplicaciones</a> · <a href="https://uavsar.jpl.nasa.gov/education/postcards.html" target="_blank" rel="noopener">Postales UAVSAR</a>.</li>

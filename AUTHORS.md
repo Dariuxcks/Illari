@@ -8,11 +8,13 @@ Idea, dirección del proyecto y diseño de ILLARI.
 
 ## Coautores
 
-| Nombre | Rol en el proyecto | GitHub |
-|---|---|---|
-| _(pendiente)_ | | |
-
-<!-- Agreguen una fila por integrante del equipo: Nombre Apellido | rol | @usuario -->
+| Nombre | Rol en el proyecto |
+|---|---|
+| María Teresa Loor | Coautora · equipo ILLARI |
+| Manuela Palacios | Coautora · equipo ILLARI |
+| Mateo Caicedo | Coautor · equipo ILLARI |
+| Ana Belén Manzano | Coautora · equipo ILLARI |
+| Darío Proaño | Coautor · equipo ILLARI |
 
 ## Herramientas
 

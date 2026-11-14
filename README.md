@@ -1,6 +1,8 @@
 # ILLARI
 
-**BY Anthony Cisneros a.k.a [rxn1n](https://github.com/Rxn1n)** · autor y creador · coautores en [`AUTHORS.md`](AUTHORS.md)
+**BY Anthony Cisneros a.k.a [rxn1n](https://github.com/Rxn1n)** · autor y creador
+
+**Coautores · equipo ILLARI:** María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano, Darío Proaño
 
 > **Pruébalo en línea (sin instalar nada):** https://rxn1n.github.io/Illari/ · espejo en Vercel: https://illari-three.vercel.app/
 
@@ -104,7 +106,7 @@ inundación. Están documentados en la sección "Método, fuentes y limitaciones
 ## Autoría
 
 - **Autor y creador:** Anthony Cisneros a.k.a rxn1n ([github.com/Rxn1n](https://github.com/Rxn1n)).
-- **Coautores:** ver [`AUTHORS.md`](AUTHORS.md).
+- **Coautores (equipo ILLARI):** María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano, Darío Proaño ([`AUTHORS.md`](AUTHORS.md)).
 
 ## Uso de IA
 
