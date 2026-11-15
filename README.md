@@ -6,7 +6,9 @@
 
 **Dirección del proyecto:** Darío Proaño, responsable de la concepción y dirección general de ILLARI.
 
-> **Pruébalo en línea (sin instalar nada):** https://rxn1n.github.io/Illari/ · espejo en Vercel: https://illari-three.vercel.app/
+> **Ejecutar nuestra versión actual en GitHub Pages:** https://dariuxcks.github.io/Illari/  
+> **Sitios del proyecto original:** https://rxn1n.github.io/Illari/ · https://illari-three.vercel.app/  
+> **Importante:** el enlace a `index.html` dentro de GitHub muestra el código fuente; para ejecutar la aplicación usa la dirección de GitHub Pages indicada arriba.
 
 Plataforma web **de código abierto (MIT)** que convierte datos de observación terrestre en información
 útil para la gestión de riesgos en Ecuador. Es el proyecto para el reto *Dancing with the SARs*
