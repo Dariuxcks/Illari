@@ -715,7 +715,18 @@ function demoObs(hz) {
   return { source: 'demo', NX, NY, bbox, acqs, A: 0, B: 1, ...obsDefaults(hz), notes: [] };
 }
 
-/* ============================================================================ ESTIMADO: pronóstico (Vigía) */
+/* ============================================================================ ESTIMADO: pronóstico (Vigía)
+   ALCANCE: estos índices NO son probabilidades validadas de inundación/incendio.
+   Guayaquil: los pesos 50 % lluvia, 30 % caudal y 20 % marea fueron fijados
+   como CONSIDERACIONES EXPLORATORIAS DEL EQUIPO por el tiempo limitado del
+   hackathon. NO proceden de una calibración estadística ni de una regresión.
+   Es necesario estimarlos y contrastarlos con registros históricos independientes,
+   o sustituir la combinación por otro modelo predictivo validado. Esa etapa no
+   se realizó por restricciones de tiempo. Se conservan las ecuaciones intactas.
+   Quito: usa el sistema canadiense FWI y una adaptación por pendiente del
+   equipo que tampoco equivale a probabilidad local calibrada.
+   Detalles: MODELOS_PREDICTIVOS.md
+   ========================================================================== */
 const FWI_EQ = { le: 9, lf: 1.39 };
 function fwiStep(prev, T, H, W, r, fac = FWI_EQ) {
   H = clamp(H, 0, 100); W = Math.max(0, W); r = Math.max(0, r);
@@ -831,6 +842,7 @@ async function loadFlood() {
   return buildFlood(cfg, R, rivers, tides, z, cells, NX, NY, 'live', notes);
 }
 function climQ(arr) { const v = arr.filter(x => x != null && Number.isFinite(x)).sort((a, b) => a - b); if (v.length < 365) return null; const q = p => v[Math.floor(p * (v.length - 1))]; return { p50: q(0.5), p90: q(0.9), p99: q(0.99) }; }
+// Umbrales 80 mm/24 h y 150 mm/72 h: criterios exploratorios; sin calibración local.
 const rainScore = (r24, r72) => Math.max(clamp(r24 / 80), clamp(r72 / 150));
 const elevSusc = h => clamp((12 - h) / 9);
 function buildFlood(cfg, R, rivers, tides, z, cells, NX, NY, mode, notes = [], today = TODAY) {
@@ -838,6 +850,9 @@ function buildFlood(cfg, R, rivers, tides, z, cells, NX, NY, mode, notes = [], t
   const acc = (p, i, n) => { let s = 0; for (let k = i - n + 1; k <= i; k++) s += Number.isFinite(p[k]) ? p[k] : 0; return s; };
   const qS = days.map(d => !rivers ? 0 : Math.max(0, ...rivers.map(rv => { const v = rv.q[rv.dates.indexOf(d)]; return rv.clim && Number.isFinite(v) ? clamp((v - rv.clim.p50) / (rv.clim.p99 - rv.clim.p50)) : 0; })));
   const tS = days.map(d => { if (!tides) return 0; const v = tides.daily.get(d); return Number.isFinite(v) ? clamp((v - tides.p50) / (tides.p99 - tides.p50)) : 0; });
+  // 0.50 / 0.30 / 0.20: pesos propuestos por el equipo por el tiempo disponible.
+  // NO estimados estadísticamente: se requiere validación histórica o modelo alternativo.
+  // AVISO: qS/tS se hacen cero cuando falta información; no confundir con ausencia de peligro.
   const idxAt = (p, d) => { const i = first + d, rs = rainScore(acc(p, i, 1), acc(p, i, 3)); return { v: 100 * (0.5 * rs + 0.3 * qS[d] + 0.2 * tS[d]), r24: acc(p, i, 1), r72: acc(p, i, 3) }; };
   const wts = idwWeights(cells, gridPts(cfg.bbox, ...cfg.wgrid)), susc = Float32Array.from(z, elevSusc), grid = [], aux = [];
   for (let d = 0; d < D; d++) { const loc = R.slice(0, nW).map(L => idxAt(L.p, d)), g = new Float32Array(cells.length), a = new Float32Array(cells.length);
@@ -1114,7 +1129,7 @@ function renderPred() {
   $('#chartTitle').textContent = S.hz === 'fire' ? 'Susceptibilidad a incendio (FWI con pendiente)' : 'Índice de inundación (0–100)'; $('#chartSub').textContent = `${D.days.length} días`;
   chart($('#chart'), { n: D.days.length, vals: D.idx, line: S.hz === 'fire' ? D.med : null, classes: cfg.classes, ymax: S.hz === 'fire' ? Math.max(30, Math.ceil(Math.max(...D.idx.filter(Number.isFinite)) / 10) * 10 + 5) : 100, today: D.iToday, sel: d, labels: D.days });
   { const B = S.back.fire, loc = S.hz === 'fire' && B && B.tBest && D.mode !== 'demo' ? ` Umbral local validado con focos VIIRS: FWI ≥ ${nf(B.tBest.t, 1)} (${nf(B.tBest.pod, 0)} % de los días con fuego desde agosto); este día ${D.idx[d] >= B.tBest.t ? 'lo supera' : 'está por debajo'}.` : '';
-    $('#chartNote').textContent = (S.hz === 'fire' ? 'Barras: sector más expuesto. Línea punteada: FWI mediano de la ciudad. Toca el gráfico para elegir un día.' : 'Lluvia (50 %), caudal de ríos (30 %) y marea (20 %). Toca el gráfico para elegir un día.') + loc; }
+    $('#chartNote').textContent = (S.hz === 'fire' ? 'Barras: sector más expuesto. Línea punteada: FWI mediano de la ciudad. Toca el gráfico para elegir un día.' : 'Lluvia (50 %), caudal de ríos (30 %) y marea (20 %): pesos exploratorios definidos por el equipo, sin ajuste estadístico por el tiempo disponible. No son probabilidades. Toca el gráfico para elegir un día.') + loc; }
   const sel = D.sec.find(s => s.name === S.sel) || D.sec.reduce((a, b) => (b.vals[d] > a.vals[d] ? b : a)), r = sel.raw[d];
   $('#factDay').textContent = `${sel.name} · ${fmtDate(day)}`;
   const rows = S.hz === 'fire' ? [['Temperatura (12 h)', `${nf(r.T, 1)} °C`], ['Humedad relativa', `${nf(r.H, 0)} %`], ['Viento', `${nf(r.W, 0)} km/h`], ['Lluvia 24 h', `${nf(r.r, 1)} mm`], ['Combustible fino (FFMC)', nf(r.ffmc, 1)], ['Sequía (DC)', nf(r.dc, 0)], ['Propagación (ISI)', nf(r.isi, 1)], ['FWI en plano', nf(r.fwi, 1)], ['Pendiente', `${nf(sel.slope, 0)}° (ISI ×${nf(slopeFactor(sel.slope), 2)})`]]
@@ -1156,12 +1171,13 @@ function renderMethod() {
   $('#method').innerHTML = `<p><b>ILLARI separa dos tipos de información.</b> <span class="tag o">Observado</span> es lo que el radar NISAR registró: evidencia satelital. <span class="tag e">Estimado</span> es un pronóstico de modelos: una predicción con incertidumbre.</p>
   <p><b>Observado · radar NISAR.</b> ${flood ? 'Se comparan dos imágenes GCOV (retrodispersión γ⁰ con corrección de terreno) de la misma geometría. El agua tranquila refleja la señal lejos del satélite y aparece oscura: <code>agua nueva</code> = oscura después (bajo el umbral) y al menos ' + nf(S.obs.flood?.chg ?? 3, 1) + ' dB más oscura que antes. En zonas urbanas o con vegetación, el agua bajo edificios o árboles produce doble rebote y la señal HH <b>sube</b>: se marca como posible inundación bajo vegetación o edificios. Se descartan cotas sobre 25 m.' : 'Se comparan dos imágenes GCOV. El fuego elimina el follaje, que es lo que produce la retrodispersión cruzada (HV): un área quemada muestra una caída de HV donde antes había vegetación. Con archivos GUNW se usa la pérdida de coherencia entre pares.'}
   Antes de comparar, cada imagen se re-muestrea a una malla común (promedio por bloques), se filtra el moteado (3×3) y se pasa a decibelios. Se eliminan píxeles aislados. Las áreas se calculan con el tamaño real de cada píxel.</p>
-  <p><b>Estimado · pronóstico.</b> ${flood ? 'Índice 0–100 = 50 % lluvia (Open-Meteo: 24 h/80 mm o 72 h/150 mm) + 30 % caudal de los ríos Daule y Babahoyo (GloFAS, frente a su percentil 99 de 1984–2022) + 20 % marea en el golfo. En el mapa se multiplica por la susceptibilidad por cota baja (Copernicus DEM).' : 'Índice canadiense FWI (Van Wagner, 1987), validado con el caso de prueba oficial, con valores de mediodía de Open-Meteo. La pendiente (NASA SRTM) multiplica el índice de propagación ISI por e^(0,0693·pendiente°). Clases EFFIS.'}</p>
+  <p><b>Estimado · pronóstico.</b> ${flood ? 'Índice 0–100 = 50 % lluvia (Open-Meteo: 24 h/80 mm o 72 h/150 mm) + 30 % caudal de los ríos Daule y Babahoyo (GloFAS, frente a su percentil 99 de 1984–2022) + 20 % marea en el golfo. En el mapa se multiplica por la susceptibilidad por cota baja (NASA SRTM; respaldo Copernicus DEM). Los pesos 50/30/20 son consideraciones exploratorias del equipo, elegidas por el tiempo limitado del hackathon: no se ajustaron estadísticamente con eventos históricos; deben calibrarse y validarse, o reemplazarse por otra ecuación predictiva. El índice no representa una probabilidad de inundación.' : 'Índice canadiense FWI (Van Wagner, 1987), validado con el caso de prueba oficial, con valores de mediodía de Open-Meteo. La pendiente (NASA SRTM) multiplica el índice de propagación ISI por e^(0,0693·pendiente°). Clases EFFIS.'}</p>
   <p><b>Los índices del modo Estimado son exploratorios:</b> combinan reglas publicadas (FWI) o ponderaciones propias (inundación) y <b>no son probabilidades validadas</b> de que ocurra el evento.</p>
   <p><b>Modo en vivo.</b> ILLARI pide a NASA CMR las pasadas de NISAR (fecha, hora, track, dirección, frame y polarización) y a NASA GIBS el mosaico diario en falso color. Solo compara dos fechas con la misma geometría y el mismo modo de polarización; si no, bloquea la comparación. Sobre la imagen de 8 bits, el agua es oscura y azulada (calibrado con el río Guayas), la vegetación verde y la ciudad amarilla: las áreas son <b>aproximaciones</b>. Para cuantificar con valores calibrados use archivos GCOV.</p>
   <p><b>Limitaciones.</b></p><ul>${flood ? '<li>El viento puede rizar el agua y hacerla parecer tierra; la sombra de radar detrás de cerros puede parecer agua.</li><li>NISAR pasa cada 12 días: una inundación que dura horas puede no quedar registrada.</li><li>En zonas urbanas densas la detección es más difícil.</li>' : '<li>En laderas empinadas, la sombra y el escorzo del radar pueden simular cambios: confirma con focos VIIRS o imagen óptica.</li><li>La humedad del suelo cambia la señal; compara fechas de la misma estación.</li><li>El FWI no conoce el tipo de vegetación y se calibró en bosques boreales.</li>'}
   <li>Los productos NISAR PROVISIONAL y BETA están calibrados pero en validación.</li><li>Los umbrales son una primera calibración: verifícalos con reportes de campo (Segura EP, Bomberos, SNGR).</li></ul>
   <p><b>Fuentes.</b> NISAR L2 GCOV y GUNW (NASA/JPL-Caltech e ISRO, vía ASF DAAC) · NASA Earthdata CMR · NASA GIBS y FIRMS · Open-Meteo (ECMWF/GFS, GloFAS, mareas) · relieve NASA SRTM (AWS Terrain Tiles; respaldo Copernicus DEM) · Esri. Código abierto (MIT) · ILLARI ${VERSION} · Ideador y director del proyecto: Darío Proaño · Diseño y código: Anthony Cisneros a.k.a rxn1n · Coautores: María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano.</p>`;
+  $('#method').innerHTML += '<p><b>Documentación matemática.</b> <a href="https://github.com/Dariuxcks/Illari/blob/main/MODELOS_PREDICTIVOS.md" target="_blank" rel="noopener">Ecuaciones de Guayaquil y Quito, procedencia de los datos y limitaciones de calibración</a>. NISAR, OPERA, VIIRS e IMERG aportan observaciones y contraste; no entrenan ni alimentan directamente los coeficientes de los índices meteorológicos actuales.</p>';
   $('#method').innerHTML += `<p><b>Recursos oficiales del desafío «Dancing with the SARs» usados por ILLARI</b></p><ul class="phys">
     <li>Datos: <a href="https://search.earthdata.nasa.gov/search" target="_blank" rel="noopener">NASA Earthdata Search</a> (catálogo CMR, en vivo) · <a href="https://search.asf.alaska.edu/" target="_blank" rel="noopener">ASF Vertex</a> (API de ASF, en vivo) · <a href="https://nisar-docs.asf.alaska.edu/" target="_blank" rel="noopener">Guía de usuario de datos NISAR</a> (versiones BETA, PROVISIONAL y VALIDATED; hueco del 27 jul al 10 ago 2026).</li>
     <li>Aprender: <a href="https://www.earthdata.nasa.gov/learn/earth-observation-data-basics/remote-sensing" target="_blank" rel="noopener">Introducción a la teledetección</a> · <a href="https://www.earthdata.nasa.gov/learn/earth-observation-data-basics/sar" target="_blank" rel="noopener">Introducción al SAR</a> · <a href="https://www.earthdata.nasa.gov/data/projects/arset" target="_blank" rel="noopener">Capacitaciones ARSET</a> · <a href="https://science.nasa.gov/mission/nisar/arcgis-storymaps/" target="_blank" rel="noopener">StoryMaps NISAR</a> · <a href="https://science.nasa.gov/mission/nisar/societal-benefits/" target="_blank" rel="noopener">White papers de aplicaciones</a> · <a href="https://uavsar.jpl.nasa.gov/education/postcards.html" target="_blank" rel="noopener">Postales UAVSAR</a>.</li>
