@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <!--
-  ILLARI 1.5.0 · BY Anthony Cisneros a.k.a rxn1n (autor y creador) · https://github.com/Rxn1n
+  ILLARI 1.5.1 · BY Anthony Cisneros a.k.a rxn1n (autor y creador) · https://github.com/Rxn1n
   Coautores: María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano, Darío Proaño · Licencia MIT · https://opensource.org/license/mit
   USO DE INTELIGENCIA ARTIFICIAL (requisito de NASA Space Apps): el código de este archivo fue generado y revisado
   con asistencia de Claude (Anthropic), un modelo de IA generativa, entre octubre y noviembre de 2026, a pedido del
@@ -531,7 +531,7 @@ self.onmessage = async e => {
    Archivo único, sin dependencias, sin claves. Licencia MIT.
    BY Anthony Cisneros a.k.a rxn1n — autor y creador (https://github.com/Rxn1n). Coautores: María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano, Darío Proaño.
    ========================================================================== */
-const VERSION = '1.5.0';
+const VERSION = '1.5.1';
 const $ = s => document.querySelector(s);
 const KM_DEG = 111.32;
 const nf = (x, d = 0) => Number.isFinite(x) ? new Intl.NumberFormat('es', { maximumFractionDigits: d, minimumFractionDigits: d }).format(x) : '—';
@@ -878,13 +878,15 @@ const BASES = {
   sat: { url: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`, max: 19, attr: 'Esri, Maxar, Earthstar Geographics' },
   streets: { url: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}`, max: 19, attr: 'Esri, HERE, Garmin, © OpenStreetMap' }
 };
-const GIBS = { truecolor: { layer: 'VIIRS_SNPP_CorrectedReflectance_TrueColor', ext: 'jpg', tms: [9] }, fires: { layer: 'VIIRS_SNPP_Thermal_Anomalies_375m_All', ext: 'png', tms: [9, 8, 7, 6] }, rain: { layer: 'IMERG_Precipitation_Rate', ext: 'png', tms: [6, 7, 5, 8] } };
+const GIBS = { truecolor: { layer: 'VIIRS_SNPP_CorrectedReflectance_TrueColor', ext: 'jpg', tms: [9], auto: 'tc' }, fires: { layer: '', ext: 'png', tms: [12], wms: true, auto: 'viirs' }, rain: { layer: 'IMERG_Precipitation_Rate', ext: 'png', tms: [6, 7, 5, 8] } };
 const tiles = new Map(); let tileFail = 0, tileOk = 0;
 function tile(url, onFail, onOk) { let im = tiles.get(url); if (!im) { im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => { tileOk++; onOk && onOk(); draw(); }; im.onerror = () => { im.failed = true; tileFail++; onFail && onFail(); updateAttrib(); }; im.src = url; tiles.set(url, im); if (tiles.size > 800) tiles.delete(tiles.keys().next().value); } return im; }
 function drawTiles(ctx, urlFn, maxZ, onFail, onOk) { const v = S.view, zt = Math.max(0, Math.min(maxZ, Math.round(v.z))), sc = 2 ** (v.z - zt), ts = 256 * sc, ox = lonX(v.lon, v.z) - MW / 2, oy = latY(v.lat, v.z) - MH / 2, nT = 2 ** zt; let any = false;
   for (let ty = Math.max(0, Math.floor(oy / ts)); ty <= Math.min(nT - 1, Math.floor((oy + MH) / ts)); ty++) for (let tx = Math.floor(ox / ts); tx <= Math.floor((ox + MW) / ts); tx++) { const im = tile(urlFn(zt, ((tx % nT) + nT) % nT, ty), onFail, onOk); if (im.complete && im.naturalWidth && !im.failed) { ctx.drawImage(im, tx * ts - ox, ty * ts - oy, ts + 0.5, ts + 0.5); any = true; } } return any; }
 function gibsDate() { if (S.mode === 'obs') { const O = S.obs[S.hz], b = O && O.acqs[O.B]; return b ? b.date : addDays(TODAY, -1); } const D = S.data[S.hz]; if (!D) return addDays(TODAY, -1); const d = D.days[S.day]; return d < TODAY ? d : addDays(TODAY, -1); }
-function gibsUrl(key) { const g = GIBS[key], st = S.gibs[key] || (S.gibs[key] = { k: 0, fails: 0 }), lvl = g.tms[st.k];
+function gibsUrl(key) { const g0 = GIBS[key], st = S.gibs[key] || (S.gibs[key] = { k: 0, fails: 0 }), lvl = g0.tms[st.k];
+  let g = g0; if (g0.auto) { const d = gibsDate(), L = autoLayer(g0.auto, d); if (L === undefined) return null; if (!L) return null; g = { ...g0, layer: L }; }
+  if (g.wms) { const E = 20037508.342789244; return { max: lvl, fn: (z, x, y) => { const t = 2 * E / 2 ** z, x0 = -E + x * t, y1 = E - y * t; return `https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=${g.layer}&STYLES=&FORMAT=image/png&TRANSPARENT=true&CRS=EPSG:3857&BBOX=${x0},${y1 - t},${x0 + t},${y1}&WIDTH=256&HEIGHT=256&TIME=${gibsDate()}`; }, fail: () => {}, ok: () => { st.ok = true; } }; }   // los focos VIIRS no tienen teselas WMTS raster: se piden por WMS
   return { max: lvl, fn: (z, x, y) => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${g.layer}/default/${gibsDate()}/GoogleMapsCompatible_Level${lvl}/${z}/${y}/${x}.${g.ext}`,
     fail: () => { if (++st.fails > 6 && st.k < g.tms.length - 1 && !st.ok) { st.k++; st.fails = 0; draw(); } }, ok: () => { st.ok = true; } }; }
 let drawQ = false; function draw() { if (!drawQ) { drawQ = true; requestAnimationFrame(() => { drawQ = false; render(); }); } }
@@ -923,9 +925,9 @@ function render(ctx = mctx, opts = {}) {
   if (!MW) return; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = css('--map-bg'); ctx.fillRect(0, 0, MW, MH);
   const cfg = CITIES[S.hz], lay = S.layer[S.mode];
   let base = false;
-  if (!opts.noTiles) { if (S.base === 'truecolor') { const g = gibsUrl('truecolor'); base = drawTiles(ctx, g.fn, g.max, g.fail, g.ok); } else if (BASES[S.base]) base = drawTiles(ctx, BASES[S.base].url, BASES[S.base].max); }
+  if (!opts.noTiles) { if (S.base === 'truecolor') { const g = gibsUrl('truecolor'); base = g ? drawTiles(ctx, g.fn, g.max, g.fail, g.ok) : false; } else if (BASES[S.base]) base = drawTiles(ctx, BASES[S.base].url, BASES[S.base].max); }
   if (!base) graticule(ctx);
-  if (!opts.noTiles && (lay === 'fires' || lay === 'rain')) { const g = gibsUrl(lay); drawTiles(ctx, g.fn, g.max, g.fail, g.ok); }
+  if (!opts.noTiles && (lay === 'fires' || lay === 'rain')) { const g = gibsUrl(lay); if (g) drawTiles(ctx, g.fn, g.max, g.fail, g.ok); }
   if (S.mode === 'obs') {
     const O = S.obs[S.hz];
     if (O && O.res) {
@@ -1126,7 +1128,7 @@ function renderPred() {
 function renderLegend() {
   const el = $('#legend'), lay = S.layer[S.mode], cfg = CITIES[S.hz];
   if (S.mode === 'obs') { const O = S.obs[S.hz], R = O?.res;
-    if (lay === 'fires') { el.innerHTML = `<h4>Focos de calor VIIRS · ${gibsDate()}</h4><div class="hint">Sensor térmico de NASA (no es radar). Sirve para confirmar las áreas quemadas.</div>`; return; }
+    if (lay === 'fires') { el.innerHTML = `<h4>Focos de calor VIIRS · ${gibsDate()}</h4><div class="hint">Sensor térmico de NASA (no es radar). Sirve para confirmar las áreas quemadas.${viirsSatsLabel(gibsDate()) ? ' Satélites con datos ese día: ' + viirsSatsLabel(gibsDate()) + '.' : ''}</div>`; return; }
     if (!R) { el.innerHTML = '<h4>Sin resultado</h4>'; return; }
     if (lay === 'multi') { const M = S.multi[S.hz]; el.innerHTML = !M || M.status !== 'ok' ? `<h4>Confirmación OPERA</h4><div class="hint">${M && M.status === 'error' ? escapeHtml(M.err) : 'Cargando productos de NASA OPERA…'}</div>` : `<h4>Confirmación multisensor · ${fmtDate(M.ev, 'y')}</h4><div class="cats">${MULTI_LEG[S.hz].map(([k, n]) => `<span class="sw" style="background:${rgbCss(MULTI_RGB[k])}"></span><span>${n}</span>`).join('')}</div><div class="hint">Productos validados de NASA (OPERA DSWx, DIST-ALERT, VIIRS) cruzados con el radar NISAR.</div>`; return; }
     if (R.kind === 'GIBS' && (lay === 'pre' || lay === 'post')) { el.innerHTML = `<h4>NISAR ${lay === 'pre' ? 'antes' : 'después'} · ${fmtDate(O.acqs[lay === 'pre' ? O.A : O.B].date, 'y')}</h4><div class="cats"><span class="sw" style="background:#46b91a"></span><span>Vegetación (HV alto)</span><span class="sw" style="background:#e1be1e"></span><span>Ciudad (HH alto)</span><span class="sw" style="background:#16283a"></span><span>Agua tranquila (oscuro azulado)</span></div><div class="hint">Mosaico NISAR en falso color de NASA GIBS (co-polar HH en rojo y azul, cruzada HV en verde). Ve a través de las nubes.</div>`; return; }
@@ -1137,7 +1139,7 @@ function renderLegend() {
     return; }
   if (lay === 'terrain') { el.innerHTML = `<h4>Relieve (NASA SRTM vía AWS Terrain Tiles; respaldo Copernicus DEM)</h4><div class="hint">Más claro = más alto.</div>`; return; }
   if (lay === 'rain') { el.innerHTML = `<h4>Lluvia IMERG (NASA) · ${gibsDate()}</h4><div class="hint">Lluvia estimada por satélite (GPM).</div>`; return; }
-  if (lay === 'fires') { el.innerHTML = `<h4>Focos VIIRS (NASA) · ${gibsDate()}</h4><div class="hint">Detecciones térmicas de 375 m.</div>`; return; }
+  if (lay === 'fires') { el.innerHTML = `<h4>Focos VIIRS (NASA) · ${gibsDate()}</h4><div class="hint">Detecciones térmicas de 375 m.${viirsSatsLabel(gibsDate()) ? ' Satélites: ' + viirsSatsLabel(gibsDate()) + '.' : ''}</div>`; return; }
   if (lay === 'aux' && S.hz === 'flood') { el.innerHTML = `<h4>Lluvia acumulada 72 h (pronóstico)</h4><div class="cls"><span style="background:#99ccff"></span><span style="background:#4d9bff"></span><span style="background:#0050ff"></span></div><div class="cls-l mono"><span>0</span><span>75</span><span>150+ mm</span></div>`; return; }
   el.innerHTML = `<h4>${S.hz === 'fire' ? 'Susceptibilidad a incendio (FWI con pendiente)' : 'Zonas propensas a anegarse'} · estimado</h4><div class="cls">${cfg.classes.map(k => `<span style="background:${k[2]}"></span>`).join('')}</div><div class="cls-l">${cfg.classes.map(k => `<span>${k[1]}</span>`).join('')}</div><div class="hint">${S.hz === 'fire' ? 'Clases EFFIS. Pronóstico meteorológico, no observación.' : 'Índice de la ciudad × susceptibilidad por cota baja. No es un modelo hidráulico.'}</div>`;
 }
@@ -1241,7 +1243,7 @@ async function fetchPixels(url, ms = 30000) { for (let k = 0; ; k++) { try { ret
 async function fetchPixels1(url, ms) {
   const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), ms);
   try { const r = await srcFetch(url, { signal: ctl.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); const ct = r.headers.get('content-type') || '';
-    if (!/image/.test(ct)) { const msg = 'NASA respondió: ' + (await r.text()).replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim().slice(0, 140); srcMark(url, { status: 'error', http: r.status, msg }); throw new Error(msg); }
+    if (!/image/.test(ct)) { const raw = await r.text(); if (/msShapefileOpen|shapefile/i.test(raw)) { srcMark(url, { status: 'ok', http: r.status, msg: 'sin archivo publicado para esa fecha (se omite)' }); throw new Error('sin datos para esa fecha'); } const msg = 'NASA respondió: ' + raw.replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim().slice(0, 140); srcMark(url, { status: 'error', http: r.status, msg }); throw new Error(msg); }
     const bmp = await createImageBitmap(await r.blob()), cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height; const c = cv.getContext('2d'); c.drawImage(bmp, 0, 0);
     return { data: c.getImageData(0, 0, bmp.width, bmp.height).data, w: bmp.width, h: bmp.height }; }
   finally { clearTimeout(tm); }
@@ -1324,7 +1326,21 @@ async function selectObs(which, i) { const O = S.obs[S.hz]; O[which] = i; if (O.
 /* ============================================================================ CONFIRMACIÓN MULTISENSOR (NASA OPERA + VIIRS) */
 // Productos clasificados y validados de NASA, sin clave, por GIBS. Paletas oficiales (OPERA DSWx-S1/HLS y DIST-ALERT, JPL/UMD):
 // se decodifican color por color, sin interpretar tonos.
-const OPERA = { s1: 'OPERA_L3_Dynamic_Surface_Water_Extent-Sentinel-1', hls: 'OPERA_L3_Dynamic_Surface_Water_Extent-HLS', dist: 'OPERA_L3_DIST-ALERT-HLS_Color_Index', viirs: ['VIIRS_SNPP_Thermal_Anomalies_375m_All', 'VIIRS_NOAA20_Thermal_Anomalies_375m_All'] };
+const OPERA = { s1: 'OPERA_L3_Dynamic_Surface_Water_Extent-Sentinel-1', hls: 'OPERA_L3_Dynamic_Surface_Water_Extent-HLS', dist: 'OPERA_L3_DIST-ALERT-HLS_Color_Index', viirs: ['VIIRS_SNPP_Thermal_Anomalies_375m_All', 'VIIRS_NOAA20_Thermal_Anomalies_375m_All', 'VIIRS_NOAA21_Thermal_Anomalies_375m_All'] };
+/* Satélites VIIRS elegidos AUTOMÁTICAMENTE según lo que NASA tenga publicado para cada fecha: se pregunta a GIBS por cada
+   plataforma (prioridad Suomi NPP → NOAA-20 → NOAA-21) y se usan las dos primeras que respondan con datos. Si un satélite deja
+   de publicar (Suomi NPP, nov 2026) entra el siguiente; si vuelve, se usa otra vez. Sin fechas fijas en el código.
+   La respuesta se recuerda hasta la siguiente sincronización (30 min), así los días recientes se vuelven a consultar. */
+const GAVAIL = new Map(), AUTO_L = new Map();
+function gibsHas(url, wmts) { if (!GAVAIL.has(url)) GAVAIL.set(url, (async () => { const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 15000);
+  try { const r = await fetch(url, { signal: ctl.signal }); return r.ok && /image/.test(r.headers.get('content-type') || ''); } catch (e) { GAVAIL.delete(url); return false; } finally { clearTimeout(tm); } })()); return GAVAIL.get(url); }
+const PROBE_BB = '-8770000,-250000,-8700000,-180000';   // ~Guayaquil, imagen de 8 px: solo se mira si NASA tiene el archivo
+const viirsProbe = (L, d) => `https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=${L}&STYLES=&FORMAT=image/png&TRANSPARENT=true&CRS=EPSG:3857&BBOX=${PROBE_BB}&WIDTH=8&HEIGHT=8&TIME=${d}`;
+async function viirsLayers(d) { const ok = await Promise.all(OPERA.viirs.map(L => gibsHas(viirsProbe(L, d)))); return OPERA.viirs.filter((L, k) => ok[k]).slice(0, 2); }
+const TC_LAYERS = ['VIIRS_SNPP_CorrectedReflectance_TrueColor', 'VIIRS_NOAA20_CorrectedReflectance_TrueColor', 'VIIRS_NOAA21_CorrectedReflectance_TrueColor'];
+async function tcLayer(d) { const ok = await Promise.all(TC_LAYERS.map(L => gibsHas(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${L}/default/${d}/GoogleMapsCompatible_Level9/6/32/18.jpg`))); return TC_LAYERS[ok.indexOf(true)] || TC_LAYERS[1]; }
+function autoLayer(kind, d) { const k = kind + '|' + d; if (!AUTO_L.has(k)) { AUTO_L.set(k, undefined); (kind === 'tc' ? tcLayer(d) : viirsLayers(d).then(a => a.join(','))).then(L => { AUTO_L.set(k, L); draw(); updateAttrib(); if (typeof renderLegend === 'function') renderLegend(); }); } return AUTO_L.get(k); }
+function viirsSatsLabel(d) { const L = AUTO_L.get('viirs|' + d); return L ? L.split(',').map(x => /NOAA20/.test(x) ? 'NOAA-20' : /NOAA21/.test(x) ? 'NOAA-21' : 'Suomi NPP').join(' + ') : ''; }
 const PAL_DSWX = [[255, 255, 255, 0], [0, 0, 255, 1], [180, 213, 244, 2], [0, 255, 0, 3], [200, 200, 200, 250], [128, 128, 128, 251], [0, 255, 255, 252], [175, 175, 175, 253], [0, 0, 127, 254]];
 const PAL_DIST = [[18, 18, 18, 0], [0, 85, 85, 1], [137, 127, 78, 2], [222, 224, 67, 3], [0, 136, 136, 4], [228, 135, 39, 5], [224, 27, 7, 6], [119, 119, 119, 7], [221, 221, 221, 8]];
 function decodePal(rgba, N, pal) { const out = new Uint8Array(N).fill(255); for (let i = 0; i < N; i++) { const o = i * 4; if (!rgba[o + 3]) continue; let best = 255, bd = 40 * 40 * 3; for (const p of pal) { const d = (rgba[o] - p[0]) ** 2 + (rgba[o + 1] - p[1]) ** 2 + (rgba[o + 2] - p[2]) ** 2; if (d < bd) { bd = d; best = p[3]; } } out[i] = best; } return out; }
@@ -1341,11 +1357,11 @@ function sectorShare(O, mask, sectors, rKm = 1.5) { const px = cellKm2(O); retur
   for (let r = r0; r <= r1; r++) for (let c = 0; c < O.NX; c++) { const i = r * O.NX + c, [pla, plo] = cellLL(O, i), dy = (pla - la) * KM_DEG, dx = (plo - lo) * KM_DEG * Math.cos(la * Math.PI / 180); if (dx * dx + dy * dy > rKm * rKm) continue; n++; if (mask(i)) hit++; }
   return { name, km2: hit * px, pct: n ? hit / n * 100 : 0 }; }).sort((a, b) => b.pct - a.pct); }
 async function viirsHotspots(bb, d0, d1) {
-  const jobs = []; for (let d = d0; d <= d1; d = addDays(d, 1)) for (const L of OPERA.viirs) jobs.push([L, d]); const pts = [];
+  const jobs = []; const days = []; for (let d = d0; d <= d1; d = addDays(d, 1)) days.push(d); const lays = await Promise.all(days.map(viirsLayers)); days.forEach((d, k) => { for (const L of lays[k]) jobs.push([L, d]); }); const pts = [];
   const [x0, y0] = merc(bb.s, bb.w), [x1, y1] = merc(bb.n, bb.e), W = 400, H = Math.round(W * (y1 - y0) / (x1 - x0));
   await Promise.all(Array.from({ length: 6 }, async () => { while (jobs.length) { const [L, d] = jobs.shift(); try { const img = await fetchPixels(wmsUrl(L, d, bb, W, H), 20000);
     const iw = img.w, ih = img.h; for (let py = 0; py < ih; py++) for (let px = 0; px < iw; px++) { const o = (py * iw + px) * 4, r = img.data[o], g = img.data[o + 1], b = img.data[o + 2]; if (!img.data[o + 3] || !(r > 120 && g < 90 && b < 90)) continue;
-      const lon = bb.w + (px + 0.5) / iw * (bb.e - bb.w), my = y1 - (py + 0.5) / ih * (y1 - y0), lat = (2 * Math.atan(Math.exp(my / 6378137)) - Math.PI / 2) * 180 / Math.PI; pts.push({ lat, lon, date: d, sat: /NOAA20/.test(L) ? 'NOAA-20' : 'Suomi NPP' }); } } catch (e) {} } }));
+      const lon = bb.w + (px + 0.5) / iw * (bb.e - bb.w), my = y1 - (py + 0.5) / ih * (y1 - y0), lat = (2 * Math.atan(Math.exp(my / 6378137)) - Math.PI / 2) * 180 / Math.PI; pts.push({ lat, lon, date: d, sat: /NOAA20/.test(L) ? 'NOAA-20' : /NOAA21/.test(L) ? 'NOAA-21' : 'Suomi NPP' }); } } catch (e) {} } }));
   const seen = new Map(); for (const p of pts) { const k = `${p.date}|${Math.round(p.lat / 0.004)}|${Math.round(p.lon / 0.004)}`; if (!seen.has(k)) seen.set(k, p); }   // ~400 m, tamaño de un píxel VIIRS
   return [...seen.values()];
 }
@@ -1402,7 +1418,7 @@ async function loadMulti(hz) {
   if (S.multi[hz] === M) { S.cache.clear(); if (S.hz === hz) { renderMulti(); renderPhysics(); draw(); renderLegend(); if (S.mode === 'obs') renderObs(); } }
 }
 async function viirsDaily(bb, d0, d1) {   // píxeles de foco por día (las dos plataformas VIIRS), imagen liviana
-  const jobs = []; for (let d = d0; d <= d1; d = addDays(d, 1)) for (const L of OPERA.viirs) jobs.push([L, d]); const fd = new Map();
+  const jobs = []; const days = []; for (let d = d0; d <= d1; d = addDays(d, 1)) days.push(d); const lays = await Promise.all(days.map(viirsLayers)); days.forEach((d, k) => { for (const L of lays[k]) jobs.push([L, d]); }); const fd = new Map();
   const [x0, y0] = merc(bb.s, bb.w), [x1, y1] = merc(bb.n, bb.e), W = 256, H = Math.round(W * (y1 - y0) / (x1 - x0));
   await Promise.all(Array.from({ length: 8 }, async () => { while (jobs.length) { const [L, d] = jobs.shift(); try { const img = await fetchPixels(wmsUrl(L, d, bb, W, H), 20000); let n = 0; for (let o = 0; o < img.data.length; o += 4) if (img.data[o + 3] && img.data[o] > 120 && img.data[o + 1] < 90 && img.data[o + 2] < 90) n++; if (n) fd.set(d, (fd.get(d) || 0) + n); } catch (e) {} } }));
   return fd;
@@ -1684,7 +1700,7 @@ function setFirms(list, src) { S.firms = list; $('#firmsCount').textContent = `$
 try { $('#firmsKey').value = localStorage.getItem('illari-firms') || ''; } catch (e) {}
 $('#firmsGo').onclick = async () => { const key = $('#firmsKey').value.trim(), m = $('#firmsMsg'); if (!key) { m.className = 'msg err'; m.textContent = 'La clave es opcional: si no tienes, usa la capa «Focos VIIRS» del mapa.'; return; }
   try { localStorage.setItem('illari-firms', key); } catch (e) {} const b = CITIES.fire.bbox; m.className = 'msg'; m.textContent = 'Consultando NASA FIRMS…';
-  try { const r = await srcFetch(`https://firms.modaps.eosdis.nasa.gov/api/area/csv/${encodeURIComponent(key)}/VIIRS_SNPP_NRT/${b.w},${b.s},${b.e},${b.n}/7`); if (!r.ok) throw new Error('HTTP ' + r.status); const t = await r.text(); if (/invalid/i.test(t.slice(0, 80))) throw new Error('clave no válida'); setFirms(parseFirms(t), 'VIIRS, 7 días'); }
+  try { const r = await srcFetch(`https://firms.modaps.eosdis.nasa.gov/api/area/csv/${encodeURIComponent(key)}/VIIRS_NOAA20_NRT/${b.w},${b.s},${b.e},${b.n}/7`); if (!r.ok) throw new Error('HTTP ' + r.status); const t = await r.text(); if (/invalid/i.test(t.slice(0, 80))) throw new Error('clave no válida'); setFirms(parseFirms(t), 'VIIRS, 7 días'); }
   catch (err) { m.className = 'msg err'; m.textContent = `No se pudo consultar FIRMS (${err.message}). Descarga el CSV desde firms.modaps.eosdis.nasa.gov y ábrelo aquí.`; } };
 $('#firmsFile').addEventListener('change', async e => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; try { setFirms(parseFirms(await f.text()), f.name); } catch (err) { $('#firmsMsg').className = 'msg err'; $('#firmsMsg').textContent = 'CSV no válido: ' + err.message; } });
 
@@ -1811,7 +1827,7 @@ function renderSync() { const d = $('#syncDot'), t = $('#syncTxt'); if (!d) retu
   t.innerHTML = Y.busy ? 'Sincronizando con NASA y Open-Meteo…' : Y.at ? `<b>Sincronizado ${hhmm(Y.at)}</b> (hora de Ecuador) con NASA y Open-Meteo · próxima ${hhmm(Y.next)}${Y.err ? ` · <span class="er">${escapeHtml(Y.err)}</span>` : ''}` : 'Conectando…'; }
 async function syncAll(manual) {
   if (S.sync.busy) return; S.sync.busy = true; S.sync.err = null; renderSync();
-  TODAY = new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 10);
+  TODAY = new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 10); GAVAIL.clear(); AUTO_L.clear();
   const jobs = [loadRain(true)];
   // Pronóstico y consenso: se descartan y se vuelven a pedir.
   for (const hz of ['flood', 'fire']) { if (S.data[hz] && S.data[hz].mode !== 'demo' || S.data[hz]?.err) { delete S.data[hz]; if (S.loading) delete S.loading[hz]; } }

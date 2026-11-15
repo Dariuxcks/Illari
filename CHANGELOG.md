@@ -2,6 +2,16 @@
 
 Fechas en hora de Ecuador. Todo el código se generó con asistencia de IA (ver `USO_DE_IA.md`).
 
+## 1.5.1 · 15 nov 2026 · satélites VIIRS elegidos automáticamente
+
+- **Los focos de calor VIIRS ya no dependen de un satélite fijo.** Para cada fecha, ILLARI pregunta a NASA GIBS qué plataformas tienen datos publicados (prioridad Suomi NPP → NOAA-20 → NOAA-21) y usa las dos primeras que respondan.
+  - Suomi NPP dejó de publicarse en GIBS a inicios de noviembre de 2026. Desde entonces entran NOAA-20 y NOAA-21 (mismo sensor VIIRS) sin cambios manuales; si Suomi NPP vuelve, se usa otra vez.
+  - Las fechas anteriores siguen usando Suomi NPP + NOAA-20: las cifras de eventos pasados (Casitagua, inundaciones de octubre) no cambian.
+  - La consulta se repite en cada sincronización (30 min).
+- El fondo «color real» elige igual el satélite VIIRS que tenga imagen para esa fecha.
+- La capa «Focos VIIRS» del mapa se pide por WMS (NASA no la ofrece como teselas raster) y por fin se dibuja; la leyenda dice qué satélites tienen datos ese día.
+- Un archivo que NASA no publicó para una fecha se trata como «sin datos ese día», no como error.
+
 ## 1.5.0 · 13 nov 2026 · sincronizado al momento
 
 - **Situación actual** como vista inicial en Guayaquil y Quito:
