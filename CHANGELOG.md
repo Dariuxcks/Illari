@@ -6,6 +6,12 @@
 
 Fechas en hora de Ecuador. Todo el código se generó con asistencia de IA (ver `USO_DE_IA.md`).
 
+## Nota documental · 15 nov 2026 · modelos predictivos (sin cambios en ecuaciones)
+
+- Se documenta que los pesos de Guayaquil (50 % lluvia, 30 % caudal, 20 % marea) son **consideraciones exploratorias del equipo**, adoptadas por tiempo limitado del hackathon; no hubo calibración estadística de los pesos ni entrenamiento con eventos históricos.
+- Se deja expresamente pendiente calibrar y validar esos parámetros con datos históricos, o emplear otro modelo predictivo adecuado. No se altera ninguna ecuación ni su valor.
+- Se añade `MODELOS_PREDICTIVOS.md`, con fórmulas y separación entre las fuentes que alimentan pronósticos y las observaciones NISAR/OPERA/VIIRS/IMERG.
+
 ## 1.5.1 · 15 nov 2026 · satélites VIIRS elegidos automáticamente
 
 - **Los focos de calor VIIRS ya no dependen de un satélite fijo.** Para cada fecha, ILLARI pregunta a NASA GIBS qué plataformas tienen datos publicados (prioridad Suomi NPP → NOAA-20 → NOAA-21) y usa las dos primeras que respondan.
