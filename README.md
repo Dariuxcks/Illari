@@ -83,6 +83,35 @@ Con productos GUNW se usa en cambio la pérdida de coherencia.
 **Estimado.** Usa el índice FWI canadiense (validado con el caso de prueba oficial) y un índice compuesto de
 inundación. Están documentados en la sección "Método, fuentes y limitaciones" de la app.
 
+## Ecuaciones de los modelos predictivos: alcance y justificación
+
+**Guayaquil:** el índice exploratorio de peligro de inundación aplica
+`I = 100 × (0,50 × R + 0,30 × Q + 0,20 × M)`,
+donde `R` representa lluvia normalizada (24/72 h), `Q` caudal fluvial normalizado y `M` nivel del mar normalizado. Después se aplica una susceptibilidad por elevación en el mapa.
+
+**Los porcentajes 50 % / 30 % / 20 % son consideraciones iniciales del equipo ILLARI.**
+Fueron seleccionados como hipótesis operativa por el **tiempo limitado del hackathon**;
+**NO** proceden de una estimación de coeficientes con regresión o datos históricos de inundaciones.
+La calibración y validación estadística de estos pesos, o la formulación de **otra ecuación predictiva**
+entrenada y evaluada con eventos reales, es una tarea pendiente que no se completó por falta de tiempo.
+Por tanto, el índice **no es una probabilidad validada** ni un pronóstico certificado de inundación.
+Los umbrales de normalización también deben someterse a evaluación local.
+
+**Quito:** emplea el sistema canadiense Fire Weather Index (FWI), calculado con temperatura,
+humedad relativa, viento y precipitación; ILLARI adapta el índice de propagación ISI a la
+pendiente del terreno mediante `min(4, exp(0,0693 × pendiente_en_grados))`.
+Esta adaptación y sus umbrales locales requieren comprobación independiente.
+
+**Relación entre fuentes:** las predicciones proceden de Open-Meteo (meteorología),
+GloFAS (caudales modelados), Open-Meteo Marine (nivel del mar modelado) y NASA SRTM
+(relieve; respaldo Copernicus DEM). Por separado, NISAR/OPERA/VIIRS observan cambios;
+GPM IMERG estima precipitación observada por satélite para contraste. **Las detecciones
+satelitales no son entradas directas de las ecuaciones predictivas actuales, y los
+coeficientes no se entrenaron con esos satélites.**
+
+**Documento técnico bilingüe:** [Ecuaciones y relación entre observación y predicción](MODELOS_PREDICTIVOS.md)
+(español e inglés, con fórmulas y referencias al código).
+
 ## Confirmación y validación (1.2.0)
 
 - **Confirmación multisensor (Observado):** el agua nueva del radar se contrasta con OPERA DSWx-S1 (Sentinel-1, cada 2–6 días) y DSWx-HLS (óptico). Las áreas quemadas se contrastan con OPERA DIST-ALERT (30 m) y con focos VIIRS. Las clases se leen con la paleta oficial de cada producto.
