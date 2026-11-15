@@ -1,10 +1,14 @@
 # Autores de ILLARI
 
-## Autor y creador
+## Idea · autor
+
+**Darío Proaño**
+
+Autor de la idea de ILLARI.
+
+## Diseño y código
 
 **Anthony Cisneros a.k.a rxn1n** · [github.com/Rxn1n](https://github.com/Rxn1n)
-
-Idea, dirección del proyecto y diseño de ILLARI.
 
 ## Coautores
 
@@ -14,7 +18,6 @@ Idea, dirección del proyecto y diseño de ILLARI.
 | Manuela Palacios | Coautora · equipo ILLARI |
 | Mateo Caicedo | Coautor · equipo ILLARI |
 | Ana Belén Manzano | Coautora · equipo ILLARI |
-| Darío Proaño | Coautor · equipo ILLARI |
 
 ## Herramientas
 

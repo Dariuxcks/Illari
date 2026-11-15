@@ -11,6 +11,7 @@ Fechas en hora de Ecuador. Todo el código se generó con asistencia de IA (ver 
 - El fondo «color real» elige igual el satélite VIIRS que tenga imagen para esa fecha.
 - La capa «Focos VIIRS» del mapa se pide por WMS (NASA no la ofrece como teselas raster) y por fin se dibuja; la leyenda dice qué satélites tienen datos ese día.
 - Un archivo que NASA no publicó para una fecha se trata como «sin datos ese día», no como error.
+- Autoría: **idea (autor): Darío Proaño** · **diseño y código: Anthony Cisneros a.k.a rxn1n** · coautores: María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano. Actualizado en la app, metadatos, exportaciones, `AUTHORS.md`, `README.md`, `LICENSE` y `USO_DE_IA.md`.
 
 ## 1.5.0 · 13 nov 2026 · sincronizado al momento
 

@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <!--
-  ILLARI 1.5.1 · BY Anthony Cisneros a.k.a rxn1n (autor y creador) · https://github.com/Rxn1n
-  Coautores: María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano, Darío Proaño · Licencia MIT · https://opensource.org/license/mit
+  ILLARI 1.5.1 · Idea (autor): Darío Proaño · Diseño y código: Anthony Cisneros a.k.a rxn1n (https://github.com/Rxn1n)
+  Coautores: María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano · Licencia MIT · https://opensource.org/license/mit
   USO DE INTELIGENCIA ARTIFICIAL (requisito de NASA Space Apps): el código de este archivo fue generado y revisado
   con asistencia de Claude (Anthropic), un modelo de IA generativa, entre octubre y noviembre de 2026, a pedido del
   equipo ILLARI. El equipo es responsable de verificarlo. Detalle en USO_DE_IA.md y CHANGELOG.md.
 -->
-<meta name="author" content="Anthony Cisneros a.k.a rxn1n; coautores: María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano, Darío Proaño">
+<meta name="author" content="Idea (autor): Darío Proaño; diseño y código: Anthony Cisneros a.k.a rxn1n; coautores: María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano">
 <meta name="ai-generated" content="Código generado con asistencia de IA (Claude, Anthropic); ver USO_DE_IA.md">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <!--IL-BODY-START-->
@@ -60,6 +60,7 @@ a{color:var(--accent)}
 .brand p{margin:0;color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .brand .by{font:500 11px/1 var(--f-mono);color:var(--muted);text-decoration:none;white-space:nowrap}
 .brand .by:hover{color:var(--accent);text-decoration:underline}
+@media (max-width:480px){.brand .by{white-space:normal;line-height:1.35;display:inline-block;max-width:100%}}
 .credit{margin:4px 2px 0;font:500 12px/1.5 var(--f-mono);color:var(--muted);text-align:center}
 .credit a{color:inherit}
 .ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -210,7 +211,7 @@ details[open].card summary::before{content:"− "}
 </style>
 
 <header class="top">
-  <div class="brand"><h1>Illa<b>ri</b></h1><p>Inundaciones y fuego en Ecuador vistos por el radar NISAR</p><a class="by" href="https://github.com/Rxn1n/Illari" target="_blank" rel="noopener">by Anthony Cisneros a.k.a rxn1n</a></div>
+  <div class="brand"><h1>Illa<b>ri</b></h1><p>Inundaciones y fuego en Ecuador vistos por el radar NISAR</p><a class="by" href="https://github.com/Rxn1n/Illari" target="_blank" rel="noopener">idea:&nbsp;Darío&nbsp;Proaño · diseño&nbsp;y&nbsp;código:&nbsp;rxn1n</a></div>
   <div class="ctl">
     <div class="seg" role="group" aria-label="Ciudad y amenaza">
       <button type="button" id="hzFlood" aria-pressed="true"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1.5S3.5 6.6 3.5 9.5a4.5 4.5 0 0 0 9 0C12.5 6.6 8 1.5 8 1.5z"/></svg>Guayaquil · Inundaciones</button>
@@ -378,7 +379,7 @@ details[open].card summary::before{content:"− "}
       <ul class="advice" id="advice"></ul>
     </section>
     <details class="card method"><summary>Método, fuentes y limitaciones</summary><div id="method"></div></details>
-    <p class="credit">ILLARI · BY <a href="https://github.com/Rxn1n" target="_blank" rel="noopener">Anthony Cisneros a.k.a rxn1n</a> · autor y creador · <a href="https://github.com/Rxn1n/Illari/blob/main/AUTHORS.md" target="_blank" rel="noopener">coautores</a> · MIT</p>
+    <p class="credit">ILLARI · idea (autor): Darío Proaño · diseño y código: <a href="https://github.com/Rxn1n" target="_blank" rel="noopener">Anthony Cisneros a.k.a rxn1n</a> · <a href="https://github.com/Rxn1n/Illari/blob/main/AUTHORS.md" target="_blank" rel="noopener">coautores</a> · MIT</p>
   </aside>
 </main>
 
@@ -529,7 +530,7 @@ self.onmessage = async e => {
    OBSERVADO: cambios detectados en imágenes de radar (GCOV retrodispersión / GUNW coherencia).
    ESTIMADO: pronóstico de peligro a 16 días (Open-Meteo, GloFAS, mareas, FWI).
    Archivo único, sin dependencias, sin claves. Licencia MIT.
-   BY Anthony Cisneros a.k.a rxn1n — autor y creador (https://github.com/Rxn1n). Coautores: María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano, Darío Proaño.
+   Idea (autor): Darío Proaño. Diseño y código: Anthony Cisneros a.k.a rxn1n (https://github.com/Rxn1n). Coautores: María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano.
    ========================================================================== */
 const VERSION = '1.5.1';
 const $ = s => document.querySelector(s);
@@ -1076,7 +1077,7 @@ function renderSources() { const el = $('#srcTbl'); if (!el) return; const list 
 function sourcesLog() { return [...SRC.values()].map(e => ({ fuente: e.name, estado: e.status, http: e.http ?? null, detalle: e.msg || null, consultas_ok: e.n, fallos: e.fails, hora: e.t?.toISOString(), ultima_url: e.url })); }
 function provenance() {
   const O = S.obs[S.hz], R = O?.res, cfg = CITIES[S.hz]; if (!O) return null;
-  return { app: 'ILLARI', version: VERSION, autor: 'Anthony Cisneros a.k.a rxn1n', generado: new Date().toISOString(), ciudad: cfg.city, tipo: 'OBSERVADO (evidencia satelital)', modo: O.source === 'demo' ? 'SIMULADO' : O.source === 'gibs' ? 'EN_VIVO' : 'ARCHIVOS', fuente: O.source === 'demo' ? 'ESCENA SIMULADA (no son datos reales)' : O.source === 'gibs' ? 'NISAR GCOV (NASA-ISRO), mosaico diario en falso color de NASA GIBS; fechas y geometría de paso: ' + (O.via === 'CMR' ? 'NASA CMR' : 'exploración de GIBS (geometría no verificable)') : 'NISAR (NASA-ISRO), distribuido por ASF DAAC',
+  return { app: 'ILLARI', version: VERSION, autor: 'Darío Proaño (idea)', diseno_y_codigo: 'Anthony Cisneros a.k.a rxn1n', generado: new Date().toISOString(), ciudad: cfg.city, tipo: 'OBSERVADO (evidencia satelital)', modo: O.source === 'demo' ? 'SIMULADO' : O.source === 'gibs' ? 'EN_VIVO' : 'ARCHIVOS', fuente: O.source === 'demo' ? 'ESCENA SIMULADA (no son datos reales)' : O.source === 'gibs' ? 'NISAR GCOV (NASA-ISRO), mosaico diario en falso color de NASA GIBS; fechas y geometría de paso: ' + (O.via === 'CMR' ? 'NASA CMR' : 'exploración de GIBS (geometría no verificable)') : 'NISAR (NASA-ISRO), distribuido por ASF DAAC',
     calibrado: O.source === 'gibs' ? 'no (visualización de 8 bits)' : O.source === 'real' ? 'sí (γ⁰ GCOV / coherencia GUNW)' : 'no aplica (simulado)', validacion_independiente: 'aprobado por el autor',
     comparacion: (() => { const c = compat(O.acqs[O.A], O.acqs[O.B]); return c.ok ? 'compatible (misma geometría y polarización)' : 'BLOQUEADA: ' + c.motivo; })(), conectado: O.connectedAt, fuentes_externas: sourcesLog(),
     adquisiciones: O.acqs.map((a, i) => ({ uso: i === O.A ? 'ANTES' : i === O.B ? 'DESPUÉS' : '—', archivo: a.file, producto: a.prod, fecha: a.date, par: a.prod === 'GUNW' ? `${a.d1} → ${a.d2}` : undefined, polarizaciones: a.pols ? Object.keys(a.pols).join('/') : 'coherencia',
@@ -1160,7 +1161,7 @@ function renderMethod() {
   <p><b>Modo en vivo.</b> ILLARI pide a NASA CMR las pasadas de NISAR (fecha, hora, track, dirección, frame y polarización) y a NASA GIBS el mosaico diario en falso color. Solo compara dos fechas con la misma geometría y el mismo modo de polarización; si no, bloquea la comparación. Sobre la imagen de 8 bits, el agua es oscura y azulada (calibrado con el río Guayas), la vegetación verde y la ciudad amarilla: las áreas son <b>aproximaciones</b>. Para cuantificar con valores calibrados use archivos GCOV.</p>
   <p><b>Limitaciones.</b></p><ul>${flood ? '<li>El viento puede rizar el agua y hacerla parecer tierra; la sombra de radar detrás de cerros puede parecer agua.</li><li>NISAR pasa cada 12 días: una inundación que dura horas puede no quedar registrada.</li><li>En zonas urbanas densas la detección es más difícil.</li>' : '<li>En laderas empinadas, la sombra y el escorzo del radar pueden simular cambios: confirma con focos VIIRS o imagen óptica.</li><li>La humedad del suelo cambia la señal; compara fechas de la misma estación.</li><li>El FWI no conoce el tipo de vegetación y se calibró en bosques boreales.</li>'}
   <li>Los productos NISAR PROVISIONAL y BETA están calibrados pero en validación.</li><li>Los umbrales son una primera calibración: verifícalos con reportes de campo (Segura EP, Bomberos, SNGR).</li></ul>
-  <p><b>Fuentes.</b> NISAR L2 GCOV y GUNW (NASA/JPL-Caltech e ISRO, vía ASF DAAC) · NASA Earthdata CMR · NASA GIBS y FIRMS · Open-Meteo (ECMWF/GFS, GloFAS, mareas) · relieve NASA SRTM (AWS Terrain Tiles; respaldo Copernicus DEM) · Esri. Código abierto (MIT) · ILLARI ${VERSION} · BY Anthony Cisneros a.k.a rxn1n (autor y creador) · Coautores: María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano, Darío Proaño.</p>`;
+  <p><b>Fuentes.</b> NISAR L2 GCOV y GUNW (NASA/JPL-Caltech e ISRO, vía ASF DAAC) · NASA Earthdata CMR · NASA GIBS y FIRMS · Open-Meteo (ECMWF/GFS, GloFAS, mareas) · relieve NASA SRTM (AWS Terrain Tiles; respaldo Copernicus DEM) · Esri. Código abierto (MIT) · ILLARI ${VERSION} · Idea (autor): Darío Proaño · Diseño y código: Anthony Cisneros a.k.a rxn1n · Coautores: María Teresa Loor, Manuela Palacios, Mateo Caicedo, Ana Belén Manzano.</p>`;
   $('#method').innerHTML += `<p><b>Recursos oficiales del desafío «Dancing with the SARs» usados por ILLARI</b></p><ul class="phys">
     <li>Datos: <a href="https://search.earthdata.nasa.gov/search" target="_blank" rel="noopener">NASA Earthdata Search</a> (catálogo CMR, en vivo) · <a href="https://search.asf.alaska.edu/" target="_blank" rel="noopener">ASF Vertex</a> (API de ASF, en vivo) · <a href="https://nisar-docs.asf.alaska.edu/" target="_blank" rel="noopener">Guía de usuario de datos NISAR</a> (versiones BETA, PROVISIONAL y VALIDATED; hueco del 27 jul al 10 ago 2026).</li>
     <li>Aprender: <a href="https://www.earthdata.nasa.gov/learn/earth-observation-data-basics/remote-sensing" target="_blank" rel="noopener">Introducción a la teledetección</a> · <a href="https://www.earthdata.nasa.gov/learn/earth-observation-data-basics/sar" target="_blank" rel="noopener">Introducción al SAR</a> · <a href="https://www.earthdata.nasa.gov/data/projects/arset" target="_blank" rel="noopener">Capacitaciones ARSET</a> · <a href="https://science.nasa.gov/mission/nisar/arcgis-storymaps/" target="_blank" rel="noopener">StoryMaps NISAR</a> · <a href="https://science.nasa.gov/mission/nisar/societal-benefits/" target="_blank" rel="noopener">White papers de aplicaciones</a> · <a href="https://uavsar.jpl.nasa.gov/education/postcards.html" target="_blank" rel="noopener">Postales UAVSAR</a>.</li>
@@ -1732,7 +1733,7 @@ const u8b64 = b => { const s = atob(b), u = new Uint8ClampedArray(s.length); for
 const dec16 = b64 => { const s = atob(b64), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); const a = new Int16Array(u.buffer), o = new Float32Array(a.length); for (let i = 0; i < a.length; i++) o[i] = a[i] === -32768 ? NaN : a[i] / 100; return o; };
 function exportJson() {
   const O0 = S.obs[S.hz], D0 = S.data[S.hz];
-  const snap = { format: 'illari-scene', version: 1, app: VERSION, autor: 'Anthony Cisneros a.k.a rxn1n', saved: new Date().toISOString(), hazard: S.hz, modo_observado: O0 ? (O0.source === 'demo' ? 'SIMULADO' : O0.source === 'gibs' ? 'EN_VIVO (NASA GIBS)' : 'ARCHIVOS') : null, modo_estimado: D0 ? (D0.mode === 'demo' ? 'SIMULADO' : 'PRONOSTICO REAL (indice exploratorio)') : null, fuentes_externas: sourcesLog(), obs: null, pred: null };
+  const snap = { format: 'illari-scene', version: 1, app: VERSION, autor: 'Darío Proaño (idea)', diseno_y_codigo: 'Anthony Cisneros a.k.a rxn1n', saved: new Date().toISOString(), hazard: S.hz, modo_observado: O0 ? (O0.source === 'demo' ? 'SIMULADO' : O0.source === 'gibs' ? 'EN_VIVO (NASA GIBS)' : 'ARCHIVOS') : null, modo_estimado: D0 ? (D0.mode === 'demo' ? 'SIMULADO' : 'PRONOSTICO REAL (indice exploratorio)') : null, fuentes_externas: sourcesLog(), obs: null, pred: null };
   const O = S.obs[S.hz]; if (O) snap.obs = { source: O.source, NX: O.NX, NY: O.NY, bbox: O.bbox, A: O.A, B: O.B, pol: O.pol, thrAuto: O.thrAuto, thrWater: O.thrWater, chg: O.chg, provenance: provenance(),
     acqs: O.acqs.map(a => ({ ...a, rgba: a.rgba ? b64u8(a.rgba) : undefined, pols: a.pols ? Object.fromEntries(Object.entries(a.pols).map(([p, v]) => [p, enc16(Float32Array.from(v, x => x > 0 ? 10 * Math.log10(x) : NaN))])) : undefined, coh: a.coh ? enc16(a.coh) : undefined })) };
   const D = S.data[S.hz]; if (D && D.raw) snap.pred = { mode: D.mode === 'saved' ? 'saved' : D.mode, today: D.today, raw: D.raw };
