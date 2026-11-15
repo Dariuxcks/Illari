@@ -34,7 +34,7 @@ Al abrir, ILLARI muestra la **Situación actual** y se actualiza sola cada 30 mi
 | Focos de calor y pérdida de vegetación | NASA VIIRS + OPERA DIST | diaria |
 | Lluvia, caudal de ríos y marea: últimos 30 días + 16 días de pronóstico | Open-Meteo, GloFAS | horaria |
 
-- El **titular** del modo Observado es lo que el radar NISAR detecta **y otro satélite de NASA confirma** (Sentinel-1 para agua; VIIRS + DIST para fuego). Lo que ve solo el radar aparece aparte, marcado «solo radar».
+- El **titular** del modo Observado muestra posibles cambios NISAR **corroborados** mediante productos OPERA/VIIRS. «Corroboración multisensor» no significa validación independiente en terreno. El agua nueva requiere cambio entre mapas OPERA anteriores y posteriores; la presencia de agua en una sola fecha no basta. Lo que identifica únicamente NISAR aparece separado como «solo radar».
 - **Lluvia medida frente a modelada:** la tarjeta IMERG pone lado a lado la lluvia observada por satélite y la que reconstruye el modelo que alimenta el pronóstico.
 - **Robustez:** si NASA GIBS falla de forma pasajera, ILLARI reintenta, usa otra fecha válida y lo explica, sin pasar a la escena simulada. Las diferencias de calibración entre fechas (p. ej. PROVISIONAL frente a VALIDATED) se descuentan con una normalización local de ~7 km.
 
@@ -116,7 +116,7 @@ coeficientes no se entrenaron con esos satélites.**
 
 ## Confirmación y validación (1.2.0)
 
-- **Confirmación multisensor (Observado):** el agua nueva del radar se contrasta con OPERA DSWx-S1 (Sentinel-1, cada 2–6 días) y DSWx-HLS (óptico). Las áreas quemadas se contrastan con OPERA DIST-ALERT (30 m) y con focos VIIRS. Las clases se leen con la paleta oficial de cada producto.
+- **Corroboración multisensor (Observado):** el posible cambio hídrico de NISAR se contrasta con dos fechas de OPERA DSWx-S1 (Sentinel-1, cada 2–6 días). DSWx-HLS (óptico) permite observar presencia de agua, pero no demuestra por sí solo que sea nueva. Las posibles áreas quemadas se contrastan con OPERA DIST-ALERT (30 m) y focos térmicos VIIRS; sin una imagen DIST anterior comparable no se clasifican alteraciones como «nuevas». Las clases se leen mediante las paletas de los productos y la coincidencia no equivale a validación en terreno.
 - **¿El pronóstico habría avisado? (Estimado):** se comparan pronósticos emitidos en el pasado con lo ocurrido.
   - Guayaquil: aciertos y falsas alarmas de lluvia fuerte.
   - Quito: FWI en días con y sin fuego, y umbral local.
