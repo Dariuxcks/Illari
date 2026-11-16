@@ -607,8 +607,10 @@ function obsDefaults(hz) { return hz === 'flood' ? { pol: 'HH', thrAuto: true, t
 const GIBS_WATER = { maxL: 200, minBlue: 0.24 };   // calibrado con la imagen NISAR real de Guayaquil (río Guayas y esteros)
 function detect(hz) {
   const O = S.obs[hz]; if (!O) return; const a = O.acqs[O.A], b = O.acqs[O.B], { NX, NY, bbox } = O, N = NX * NY;
+  if (O.source === 'unavailable') return;
   O.res = null; O.err = null; O.demMasked = 0; O.blocked = null;
-  if (!a || !b) { O.err = 'Elige dos fechas.'; return; }
+  if (!a || !b) { if (O.event && O.source === 'gibs') O.blocked = 'No existe un par SAR comparable para el intervalo elegido.'; else O.err = 'Elige dos fechas.'; return; }
+  if (a.prod === 'GIBS' && a.date > b.date) { O.blocked = 'Antes debe ser anterior a Después.'; return; }
   if (O.A === O.B) { O.err = 'Elige dos fechas distintas.'; return; }
   O.blocked = null; const cp = compat(a, b);
   if (!cp.ok) { O.blocked = cp.motivo; return; }   // comparación técnicamente inválida: no se calcula nada
@@ -646,6 +648,7 @@ function detect(hz) {
     { let veg = 0, hit = 0; for (let i = 0; i < N; i++) { if (hz === 'fire' ? Number.isFinite(rA[i]) && isV(rA[i], gA[i], bA[i]) : Number.isFinite(rA[i])) veg++; if (hz === 'fire' ? cls[i] === 5 : cls[i] === 2 || cls[i] === 3) hit++; }
       if (veg && hit / veg > 0.2) warn.push(`El cambio cubre el ${nf(hit / veg * 100, 0)} % del ${hz === 'fire' ? 'área con vegetación' : 'terreno'}: es demasiado extenso para ${hz === 'fire' ? 'un incendio' : 'una inundación'} y suele ser efecto de humedad o de la visualización. Súbele el «Cambio mínimo» o confirma con OPERA y VIIRS.`); }
     pol = hz === 'flood' ? 'brillo total HH+HV (agua) y canal rojo HH (doble rebote)' : 'canal verde HV (vegetación)'; O.thrUsed = null;
+    if (!both) { O.err = 'Las imágenes no tienen píxeles válidos en común.'; return; }
     if (both < 0.3 * N) warn.push(`Las dos fechas se superponen solo en el ${nf(both / N * 100, 0)} % de la ciudad: el radar no cubrió toda la zona en ambas pasadas.`);
     if (hz === 'flood') { const D = S.data[hz]; if (D && D.z) { let rm = 0; for (let r = 0; r < NY; r++) for (let c = 0; c < NX; c++) { const i = r * NX + c; if (cls[i] < 2) continue; const la = bbox.n - (r + 0.5) * (bbox.n - bbox.s) / NY, lo = bbox.w + (c + 0.5) * (bbox.e - bbox.w) / NX; if (D.z[nearestCell(bbox, D.NX, D.NY, la, lo)] > 25) { cls[i] = 0; rm++; } } O.demMasked = rm; } }
   } else if (a.prod === 'GCOV') {
@@ -1041,8 +1044,9 @@ function renderBanner() {
     if (O.source === 'loading') setBanner('obs', 'Conectando', `Buscando las pasadas del radar NISAR sobre ${cfg.city} en NASA…`);
     else if (O.savedAt && O.source !== 'demo') setBanner('obs', 'Observado · escena guardada', `Escena NISAR guardada el ${new Date(O.savedAt).toLocaleString('es')} (${O.source === 'gibs' ? 'leída de NASA GIBS' : 'archivos GCOV/GUNW'}). Sin conexión: no se vuelve a consultar NASA.`);
     else if (O.blocked) setBanner('obs', 'Comparación SAR bloqueada', escapeHtml(O.blocked) + ' Selecciona otra fecha compatible.');
+    else if (O.gibsFail && !O.res) setBanner('obs', 'Imágenes SAR no disponibles', escapeHtml(O.gibsMsg || 'Reintenta la descarga.'));
     else if (O.source === 'gibs') { const last = O.acqs.at(-1)?.date, ago = last ? Math.round((Date.parse(TODAY) - Date.parse(last)) / 864e5) : null;
-      setBanner('obs', 'Observado · en vivo', `Radar NISAR (NASA-ISRO) leído directamente de NASA: ${O.acqs.length} días con pasada sobre ${cfg.city}. <b>Última pasada publicada: ${fmtDate(last, 'y')}</b>${ago != null ? ` (hace ${ago} ${ago === 1 ? 'día' : 'días'})` : ''}; NISAR repite órbita cada 12 días y NASA la publica días después. Evidencia satelital aproximada, no pronóstico.`); }
+      setBanner('obs', 'Observado · en vivo', `Radar NISAR (NASA-ISRO) leído directamente de NASA: ${new Set(O.acqs.map(a => a.date)).size} días con pasada sobre ${cfg.city}. <b>Última pasada publicada: ${fmtDate(last, 'y')}</b>${ago != null ? ` (hace ${ago} ${ago === 1 ? 'día' : 'días'})` : ''}; NISAR repite órbita cada 12 días y NASA la publica días después. Evidencia satelital aproximada, no pronóstico.`); }
     else if (O.source === 'unavailable') setBanner('obs', 'Comparación SAR no disponible', escapeHtml(O.err || 'No hay un par geométricamente verificable.') + ' Reintenta «Actualizar» o abre productos GCOV/GUNW originales.');
     else if (O.source === 'demo') setBanner('demo', 'Escena simulada · no son datos reales', `${O.err0 ? 'No se pudo conectar con NASA (' + escapeHtml(O.err0) + '). ' : ''}Imágenes de radar simuladas para practicar. Ninguna cifra de esta vista es una medición.`);
     else if (O.source === 'real') setBanner('obs', 'Observado · archivos', `Imágenes reales de NISAR (NASA-ISRO) sobre ${cfg.city}: ${O.acqs.length} adquisiciones. Esto es evidencia satelital, no un pronóstico.`);
@@ -1061,8 +1065,9 @@ function confKpis(flood, kp, ap, km) { const O = S.obs[S.hz], M = S.multi[S.hz];
   return ''; }
 function renderObs() {
   const O = S.obs[S.hz], cfg = CITIES[S.hz]; if (!O) return;
-  const opt = other => (a, i) => { const bad = other && i !== O.acqs.indexOf(other) && !compat(a, other).ok; return `<option value="${i}">${a.cov0 != null && a.cov0 < 0.5 ? '◔ ' : ''}${fmtDate(a.date, 'y')} · ${a.prod === 'GUNW' ? 'coherencia ' + fmtDate(a.d1) + '→' + fmtDate(a.d2) : a.prod === 'GIBS' ? 'NISAR' : 'GCOV'}${a.track ? ' · T' + a.track + ' ' + (a.dir || '') : ''}${a.pol ? ' · ' + a.pol : ''}${bad ? ' · ✕ no comparable' : ''}</option>`; };
-  $('#selA').innerHTML = O.acqs.map(opt(O.acqs[O.B])).join(''); $('#selB').innerHTML = O.acqs.map(opt(O.acqs[O.A])).join(''); $('#selA').value = O.A; $('#selB').value = O.B;
+  const opt = (other, before) => (a, i) => { const bad = other && (!compat(a, other).ok || a.prod === 'GIBS' && (before ? a.date >= other.date : a.date <= other.date)); return `<option value="${i}">${a.cov0 != null && a.cov0 < 0.5 ? '◔ ' : ''}${fmtDate(a.date, 'y')} · ${a.prod === 'GUNW' ? 'coherencia ' + fmtDate(a.d1) + '→' + fmtDate(a.d2) : a.prod === 'GIBS' ? 'NISAR' : 'GCOV'}${a.track ? ' · T' + a.track + ' ' + (a.dir || '') : ''}${a.prod === 'GIBS' && a.frame ? ' · F' + escapeHtml(a.frame) : ''}${a.pol ? ' · ' + escapeHtml(a.pol) : ''}${a.maturity ? ' · ' + escapeHtml(a.maturity) : ''}${bad ? ' · ✕ no comparable' : ''}</option>`; };
+  $('#selA').innerHTML = O.acqs.map(opt(O.acqs[O.B], true)).join(''); $('#selB').innerHTML = O.acqs.map(opt(O.acqs[O.A])).join(''); $('#selA').value = O.A; $('#selB').value = O.B;
+  $('#selA').disabled = $('#selB').disabled = O.source === 'unavailable' || !O.acqs.length;
   const pols = [...new Set(O.acqs.flatMap(a => a.pols ? Object.keys(a.pols) : []))];
   $('#oPol').innerHTML = pols.length ? pols.map(p => `<option value="${p}">${p}${p === 'HH' || p === 'VV' ? ' (co-polar: agua y edificios)' : ' (cruzada: vegetación)'}</option>`).join('') : '<option>Coherencia (GUNW)</option>';
   $('#oPol').value = O.pol; $('#oPol').disabled = !pols.length;
@@ -1102,7 +1107,7 @@ function pairHtml(O) {
   return `<table class="pairt"><thead><tr><th></th><th>Antes</th><th>Después</th></tr></thead><tbody>` +
     row('Fecha', x => fmtDate(x.date, 'y') + (x.hora ? ` · ${escapeHtml(x.hora)}` : '')) + row('Track', x => v(x, 'track')) + row('Dirección', x => escapeHtml(dirName(x.dir))) + row('Frame', x => v(x, 'frame')) +
     row('Polarización', x => x.pol ? escapeHtml(x.pol + (x.polsAll && x.polsAll !== x.pol ? ` (granules: ${x.polsAll})` : '')) : x.pols ? escapeHtml(Object.keys(x.pols).join('/')) : x.coh ? 'coherencia' : '—') +
-    row('Producto', x => escapeHtml(x.prod === 'GIBS' ? 'GCOV · mosaico GIBS' + (x.coleccion ? ` (${x.coleccion})` : '') : x.prod + (x.simulated ? ' · SIMULADO' : ''))) +
+    row('Producto', x => escapeHtml(x.prod === 'GIBS' ? 'GCOV · mosaico diario GIBS' + (x.mosaicFrames ? ' · frames ' + x.mosaicFrames : '') + (x.coleccion ? ` (${x.coleccion})` : '') : x.prod + (x.simulated ? ' · SIMULADO' : ''))) +
     (a.cov0 != null || b.cov0 != null ? row('Huella CMR sobre la ciudad', x => x.cov0 != null ? Math.round(x.cov0 * 100) + ' %' : '—') : '') +
     (a.cov != null || b.cov != null ? row('Cobertura de la imagen', x => x.cov != null ? Math.round(x.cov * 100) + ' %' : '—') : '') + '</tbody></table>' +
     (cp.ok ? `<div class="pairok">✓ Par comparable: misma geometría${a.prod !== 'GUNW' ? ' y modo de polarización' : ''}.</div>` : `<div class="pairbad"><b>✕ Comparación bloqueada.</b> ${escapeHtml(cp.motivo)}</div>`);
@@ -1120,7 +1125,7 @@ function provenance() {
   return { app: 'ILLARI', version: VERSION, autor: 'Darío Proaño (ideador y director del proyecto)', ideador: 'Darío Proaño', director_proyecto: 'Darío Proaño', diseno_y_codigo: 'Anthony Cisneros a.k.a rxn1n', generado: new Date().toISOString(), ciudad: cfg.city, tipo: 'OBSERVADO (evidencia satelital)', modo: O.source === 'demo' ? 'SIMULADO' : O.source === 'unavailable' ? 'NO DISPONIBLE' : O.source === 'gibs' ? 'EN_VIVO' : 'ARCHIVOS', fuente: O.source === 'demo' ? 'ESCENA SIMULADA (no son datos reales)' : O.source === 'unavailable' ? 'NASA CMR/GIBS: sin adquisición SAR comparable o geometría verificable' : O.source === 'gibs' ? 'NISAR GCOV (NASA-ISRO), mosaico diario en falso color de NASA GIBS; fechas y geometría de paso: ' + (O.via === 'CMR' ? 'NASA CMR' : 'exploración de GIBS (geometría no verificable)') : 'NISAR (NASA-ISRO), distribuido por ASF DAAC',
     calibrado: O.source === 'gibs' ? 'no (visualización de 8 bits)' : O.source === 'real' ? 'sí (γ⁰ GCOV / coherencia GUNW)' : 'no aplica (simulado)', validacion_independiente: 'pendiente de validación externa',
     comparacion: (() => { const c = compat(O.acqs[O.A], O.acqs[O.B]); return c.ok ? 'compatible (misma geometría y polarización)' : 'BLOQUEADA: ' + c.motivo; })(), conectado: O.connectedAt, fuentes_externas: sourcesLog(),
-    adquisiciones: O.acqs.map((a, i) => ({ uso: i === O.A ? 'ANTES' : i === O.B ? 'DESPUÉS' : '—', archivo: a.file, producto: a.prod, fecha: a.date, par: a.prod === 'GUNW' ? `${a.d1} → ${a.d2}` : undefined, polarizaciones: a.pols ? Object.keys(a.pols).join('/') : 'coherencia',
+    adquisiciones: O.acqs.map((a, i) => ({ uso: i === O.A ? 'ANTES' : i === O.B ? 'DESPUÉS' : '—', archivo: a.file, producto: a.prod, fecha: a.date, par: a.prod === 'GUNW' ? `${a.d1} → ${a.d2}` : undefined, polarizaciones: a.pols ? Object.keys(a.pols).join('/') : a.prod === 'GIBS' ? a.pol : 'coherencia',
       track: a.track, direccion: a.dir === 'A' ? 'ascendente' : a.dir === 'D' ? 'descendente' : a.dir, frame: a.frame, epsg: a.epsg, resolucion_original_m: a.posting, capa_gibs: a.prod === 'GIBS' ? NISAR_LAYER : undefined, hora_paso: a.hora, polarizacion_modo: a.pol, granules: a.ngran, coleccion: a.coleccion, cobertura: a.cov != null ? Math.round(a.cov * 100) + ' %' : undefined, url: a.url })),
     parametros: R ? { polarizacion: R.pol, umbral_agua_db: S.hz === 'flood' ? Number(O.thrUsed?.toFixed(2)) : undefined, umbral_auto: O.thrAuto, cambio_minimo: R.kind === 'GUNW' ? O.chg / 10 : O.chg,
       malla: { ancho: O.NX, alto: O.NY, pixel_m: Math.round(Math.sqrt(pixKm2(O.bbox, O.NX, O.NY)) * 1000), bbox: O.bbox },
@@ -1256,8 +1261,8 @@ $('#oSource').onchange = e => { const v = e.target.value, hz = S.hz;
   S.obs[hz] = { source: 'loading', acqs: [], NX: 2, NY: 2, bbox: CITIES[hz].bbox, A: 0, B: 0, chg: 3 }; renderPanel(); loadObsLive(hz); };
 $('#oEvent').onchange = async e => { const O = S.obs[S.hz], ev = e.target.value; if (!ev || !O || !O.acqs.length) return; O.event = ev;
   if (O.source !== 'gibs') { renderObs(); return; } const [A, B] = pairForEvent(O.acqs, evDate(ev)); O.A = A; O.B = B;
-  if (A < 0 || B < 0) { O.res = null; O.blocked = 'No existe un par SAR comparable para este evento.'; renderPanel(); draw(); return; }
-  setBanner('obs', 'Conectando', ev === NOW_EV ? 'Cargando las dos pasadas comparables más recientes de NISAR…' : 'Cargando las pasadas de NISAR antes y después del evento…'); O.gibsFail = false; try { await Promise.all([ensureAcq(O, A), ensureAcq(O, B)]); } catch (err) { O.gibsFail = true; O.gibsMsg = `NASA GIBS no entregó una de las imágenes NISAR (falla pasajera: ${err.message.slice(0, 90)}). Pulsa «Actualizar» en unos minutos o elige otras fechas.`; } obsChanged(); loadMulti(S.hz); };
+  if (A < 0 || B < 0) { S.multi[S.hz] = null; O.series = []; O.res = null; O.blocked = 'No existe un par SAR comparable para este evento.'; renderPanel(); draw(); return; }
+  await loadSelectedPair(S.hz, O); };
 
 async function ensurePred(hz) {
   if (S.data[hz]) return; if (S.loading?.[hz]) return S.loading[hz];
@@ -1316,16 +1321,42 @@ const nisarMaturity = name => /_BETA_V[0-9]/i.test(name || '') ? 'BETA' :
 function inPoly(la, lo, pts) { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [ai, oi] = pts[i], [aj, oj] = pts[j]; if ((ai > la) !== (aj > la) && lo < (oj - oi) * (la - ai) / (aj - ai) + oi) c = !c; } return c; }
 function bboxCover(bb, polys) { if (!polys.length) return null; let n = 0, k = 0; for (let r = 0; r < 10; r++) for (let c = 0; c < 10; c++) { const la = bb.s + (r + 0.5) / 10 * (bb.n - bb.s), lo = bb.w + (c + 0.5) / 10 * (bb.e - bb.w); n++; if (polys.some(p => inPoly(la, lo, p))) k++; } return k / n; }
 async function cmrPasses(bb) {
-  const q = new URLSearchParams({ bounding_box: `${bb.w},${bb.s},${bb.e},${bb.n}`, temporal: `${NISAR_GIBS_START}T00:00:00Z,${TODAY}T23:59:59Z`, page_size: '1000', sort_key: 'start_date' });
-  for (const sn of COLL.GCOV) q.append('short_name', sn);
-  const j = await getJSON('https://cmr.earthdata.nasa.gov/search/granules.json?' + q, 25000), byDate = new Map();
-  // Un día de GIBS = mosaico de las pasadas de ese día (UTC). Se agrupan los granules por fecha para conocer su geometría real.
-  for (const en of j.feed?.entry || []) { const nm = parseName(en.title), d = (en.time_start || '').slice(0, 10) || nm.d1; if (!d || !nm.track) continue;
-    const g = byDate.get(d) || { date: d, tracks: new Set(), dirs: new Set(), frames: new Set(), pols: new Set(), maturities: new Set(), times: [], titles: [], colls: new Set(), polys: [] }; g.polys.push(...cmrPolys(en));
-    g.tracks.add(nm.track); g.dirs.add(nm.dir); g.frames.add(nm.frame); if (nm.pol) g.pols.add(nm.pol); g.times.push((en.time_start || '').slice(11, 16)); g.titles.push(en.title); g.colls.add((en.dataset_id || '').replace(/^NISAR\s*/, '').replace(/Geocoded Polarimetric Covariance Product/, 'GCOV').trim()); g.maturities.add(nisarMaturity((en.dataset_id || '') + ' ' + (en.title || ''))); byDate.set(d, g); }
-  return [...byDate.values()].sort((a, b) => a.date < b.date ? -1 : 1).map(g => { const pols = [...g.pols].sort(), kinds = [...new Set(pols.map(polClass))], best = pols.find(p => !/^S/.test(p)) || pols[0], levels = [...g.maturities];
-    return { date: g.date, track: [...g.tracks].sort().join('/'), dir: [...g.dirs].sort().join('+'), frame: [...g.frames].sort().join('/'), pol: best, polc: kinds.length === 1 ? kinds[0] : 'mixta', polsAll: pols.join('/'), maturity: levels.length === 1 ? levels[0] : 'MIXTA',
-      hora: [...new Set(g.times)].sort()[0] + ' UTC', title: g.titles[0], ngran: g.titles.length, coleccion: [...g.colls].join(' + '), cov0: bboxCover(bb, g.polys) }; });
+  const groups = new Map(), days = new Map();
+  // La consulta por colección conserva la madurez oficial aun si dataset_id es descriptivo.
+  const batches = await Promise.all(COLL.GCOV.map(async shortName => {
+    const q = new URLSearchParams({ short_name: shortName, bounding_box: `${bb.w},${bb.s},${bb.e},${bb.n}`, temporal: `${NISAR_GIBS_START}T00:00:00Z,${TODAY}T23:59:59Z`, page_size: '1000', sort_key: 'start_date' });
+    const entries = [];
+    for (let page = 1; ; page++) {
+      q.set('page_num', page);
+      const j = await getJSON('https://cmr.earthdata.nasa.gov/search/granules.json?' + q, 25000);
+      const batch = j.feed.entry;
+      entries.push(...batch);
+      if (batch.length < 1000) return entries;
+    }
+  }));
+  COLL.GCOV.forEach((shortName, i) => {
+    for (const en of batches[i]) {
+      const nm = parseName(en.title), date = (en.time_start || '').slice(0, 10) || nm.d1;
+      if (!date) continue;
+      const [, , , , , , , , mode, pol, sourceMode] = (en.title || '').split('_');
+      const maturity = nisarMaturity(shortName);
+      const orbit = [nm.track, nm.dir, mode, pol, sourceMode, maturity].join('|');
+      const key = [date, orbit, nm.frame].join('|');
+      const day = days.get(date) || { orbits: new Set(), frames: new Set(), complete: true };
+      day.orbits.add(orbit); day.frames.add(nm.frame);
+      day.complete &&= !!(nm.track && nm.frame && nm.pol && mode && sourceMode);
+      days.set(date, day);
+      const g = groups.get(key) || { date, track: nm.track, dir: nm.dir, frame: nm.frame, mode, pol, sourceMode,
+        polc: polClass(pol), polsAll: pol, maturity, coleccion: shortName, hora: (en.time_start || '').slice(11, 16) + ' UTC',
+        title: en.title, ngran: 0, polys: [] };
+      g.ngran++; g.polys.push(...cmrPolys(en)); groups.set(key, g);
+    }
+  });
+  return [...groups.values()].map(({ polys, ...g }) => {
+    const day = days.get(g.date);
+    return { ...g, cov0: bboxCover(bb, polys), mosaicFrames: [...day.frames].sort().join('/'),
+      geometryVerified: day.complete && day.orbits.size === 1 };
+  }).sort((a, b) => a.date.localeCompare(b.date) || (a.cov0 ?? -1) - (b.cov0 ?? -1) || a.title.localeCompare(b.title));
 }
 async function scanPasses(bb) {   // respaldo si CMR no responde: se prueba cada día en GIBS con una imagen diminuta (sin geometría verificable)
   const days = []; for (let d = 0; d < 90; d++) { const day = addDays(TODAY, -d); if (day < NISAR_GIBS_START) break; days.push(day); }
@@ -1342,13 +1373,17 @@ function compat(a, b) {
   if (!a.track || !b.track || !a.dir || !b.dir)
     return { ok: false, motivo: 'Geometría no verificable: se necesita track y dirección del catálogo NASA CMR o del producto original.' };
   if (a.prod === 'GIBS' && (a.geometryVerified === false || b.geometryVerified === false))
-    return { ok: false, motivo: 'Sondeo GIBS sin geometría CMR: una fecha disponible no demuestra que el par SAR sea compatible.' };
+    return { ok: false, motivo: 'La geometría o el procesamiento del mosaico diario no son únicos o verificables en CMR.' };
   if (!['A', 'D'].includes(a.dir) || !['A', 'D'].includes(b.dir) ||
       !/^[0-9]+$/.test(String(a.track)) || !/^[0-9]+$/.test(String(b.track)))
     return { ok: false, motivo: 'Mosaico con múltiples tracks o direcciones, o geometría ambigua: se necesita una órbita única.' };
   if (a.track !== b.track || a.dir !== b.dir)
     return { ok: false, motivo: 'Las fechas pertenecen a tracks o direcciones de observación distintos.' };
   if (a.prod === 'GIBS') {
+    if (a.date === b.date || a.mode !== b.mode || a.sourceMode !== b.sourceMode || a.mosaicFrames !== b.mosaicFrames)
+      return { ok: false, motivo: 'Se requieren fechas distintas con el mismo modo de adquisición y los mismos frames del mosaico diario.' };
+    if ([a,b].some(x => x.cov0 != null && x.cov0 < 0.5))
+      return { ok: false, motivo: 'La huella seleccionada cubre menos de la mitad de la zona.' };
     if (!a.frame || !b.frame || a.frame !== b.frame)
       return { ok: false, motivo: 'Los frames no coinciden o no están documentados en CMR; la huella radar puede ser diferente.' };
     if (!a.maturity || !b.maturity || ['MIXTA', 'DESCONOCIDA'].includes(a.maturity) ||
@@ -1362,12 +1397,18 @@ function compat(a, b) {
   return { ok: true };
 }
 function pairForEvent(acqs, ev) {
-  const covers = x => x.cov0 == null || x.cov0 >= 0.5;   // huella CMR: al menos media ciudad cubierta
-  const prevCompat = B => { if (!covers(acqs[B])) return -1; let any = -1; for (let A = B - 1; A >= 0; A--) if (covers(acqs[A]) && compat(acqs[A], acqs[B]).ok) { if (!acqs[A].coleccion || acqs[A].coleccion === acqs[B].coleccion) return A; if (any < 0) any = A; if (B - A > 3) break; } return any; };
-  if (!ev) { for (let B = acqs.length - 1; B > 0; B--) { const A = prevCompat(B); if (A >= 0) return [A, B]; } return [-1, -1]; }
-  const first = acqs.findIndex(x => x.date >= ev);
-  if (first >= 0) for (let B = first; B < acqs.length && B <= first + 4; B++) { const A = prevCompat(B); if (A >= 0 && acqs[A].date < ev) return [A, B]; }
-  return [-1, -1];  // ningún par válido: nunca elegir fechas incompatibles
+  const candidates = acqs.map((_, i) => i);
+  if (!ev) candidates.reverse();
+  const eventDates = new Set();
+  for (const B of candidates) {
+    if (ev && acqs[B].date < ev) continue;
+    if (ev && eventDates.add(acqs[B].date).size > 5) break; // misma ventana de cinco fechas posteriores
+    for (let A = B - 1; A >= 0; A--) {
+      if (ev && acqs[A].date >= ev || acqs[A].date >= acqs[B].date) continue;
+      if (compat(acqs[A], acqs[B]).ok) return [A, B];
+    }
+  }
+  return [-1, -1];
 }
 async function ensureAcq(O, i) {
   const a = O.acqs[i]; if (i < 0 || !a) throw new Error('Sin adquisición SAR válida seleccionada.'); if (a.rgba || a.prod !== 'GIBS') return; const bb = O.bbox, [x0, y0] = merc(bb.s, bb.w), [x1, y1] = merc(bb.n, bb.e), W = 900, H = Math.round(W * (y1 - y0) / (x1 - x0));
@@ -1376,6 +1417,8 @@ async function ensureAcq(O, i) {
   a.rgba = g.rgba; a.cov = g.cov; a.url = url; a.layer = NISAR_LAYER; a.resp = { w: img.w, h: img.h, t: new Date().toISOString() };
 }
 async function loadObsLive(hz, keepEv) {
+  const initial = S.obs[hz], revision = initial?.selectionRequest, event = initial?.event;
+  const superseded = () => S.obs[hz] !== initial || initial?.selectionRequest !== revision || initial?.event !== event;
   const cfg = CITIES[hz], bb = cfg.bbox, [NX, NY] = obsGridSize(bb, 600);
   let passes = [], via = 'CMR', cmrError = null;
   try {
@@ -1387,16 +1430,21 @@ async function loadObsLive(hz, keepEv) {
       'No se calculan cambios SAR sin metadatos CMR.' + (cmrError ? ' CMR: ' + cmrError : ''));
     const O = { source: 'gibs', via, NX, NY, bbox: bb, acqs: passes.map(p => ({ prod: 'GIBS', ...p, file: p.title || `NASA GIBS · ${NISAR_LAYER}`, rgba: null })), ...obsDefaults(hz), chg: hz === 'flood' ? 5 : 3, notes: [], connectedAt: new Date().toISOString() };
     const ev = keepEv || EVENTS[hz][0][1]; O.event = ev; let [A, B] = pairForEvent(O.acqs, evDate(ev)); O.A = A; O.B = B;
-    if (A < 0 || B < 0 || !compat(O.acqs[A], O.acqs[B]).ok)
-      throw new Error('NASA CMR no proporcionó dos pasadas NISAR comparables para la fecha: ' +
-        'se exige el mismo track, dirección, frame, composición de polarización y madurez del producto.');
-    // Si NASA GIBS falla con una fecha, se prueba el siguiente par comparable más reciente (hasta 3) en vez de caer a la simulación.
-    for (let tries = 0; ; tries++) { try { await Promise.all([ensureAcq(O, A), ensureAcq(O, B)]); O.A = A; O.B = B; break; } catch (e) {
-      if (tries >= 2) { O.A = A; O.B = B; O.gibsMsg = `NASA GIBS no entregó la imagen NISAR (falla pasajera de su servidor: ${e.message.slice(0, 90)}). ILLARI reintentará en la próxima sincronización; también puedes pulsar «Actualizar» o elegir otras fechas.`; O.gibsFail = true; break; }
-      const sub = O.acqs.slice(0, B); const [A2, B2] = pairForEvent(sub, null); if (A2 < 0 || B2 < 0 || B2 >= B || A2 === B2) { tries = 2; continue; } A = A2; B = B2; O.usedFallback = true; O.notes.push('Se usó un par anterior porque NASA GIBS no entregó una de las imágenes más recientes.'); } }
-    S.obs[hz] = O; detect(hz); loadMulti(hz); nisarSeries(hz);
+    if (A < 0 || B < 0) {
+      O.blocked = evDate(ev) ? 'No hay un par comparable que rodee el evento. Puedes elegir dos fechas manualmente para explorar otro intervalo.' : 'No hay dos adquisiciones comparables en el catálogo.';
+      if (superseded()) return;
+      S.obs[hz] = O; S.multi[hz] = null;
+    } else {
+      // Si NASA GIBS falla con una fecha, se prueba el siguiente par comparable más reciente (hasta 3) en vez de caer a la simulación.
+      for (let tries = 0; ; tries++) { try { await Promise.all([ensureAcq(O, A), ensureAcq(O, B)]); O.A = A; O.B = B; break; } catch (e) {
+        if (tries >= 2) { O.A = A; O.B = B; O.gibsMsg = `NASA GIBS no entregó la imagen NISAR (falla pasajera de su servidor: ${e.message.slice(0, 90)}). ILLARI reintentará en la próxima sincronización; también puedes pulsar «Actualizar» o elegir otras fechas.`; O.gibsFail = true; break; }
+        const sub = O.acqs.slice(0, B); const [A2, B2] = pairForEvent(sub, evDate(ev)); if (A2 < 0 || B2 < 0 || B2 >= B || A2 === B2) { tries = 2; continue; } A = A2; B = B2; O.usedFallback = true; O.notes.push('Se usó un par anterior porque NASA GIBS no entregó una de las imágenes más recientes.'); } }
+      if (superseded()) return;
+      S.obs[hz] = O; detect(hz); loadMulti(hz); nisarSeries(hz);
+    }
   } catch (err) {
     console.warn(err);
+    if (superseded()) return;
     const previous = S.obs[hz];
     if (keepEv && previous?.source === 'gibs' && previous.res) {
       previous.notes = [...(previous.notes || []), 'La actualización no produjo un par válido: ' + err.message];
@@ -1412,7 +1460,27 @@ async function loadObsLive(hz, keepEv) {
   }
   if (S.hz === hz) { S.cache.clear(); renderPanel(); draw(); }
 }
-async function selectObs(which, i) { const O = S.obs[S.hz]; if (!O || i < 0 || i >= O.acqs.length || O.source === 'unavailable') return; O[which] = i; if (O.source === 'gibs' && compat(O.acqs[O.A], O.acqs[O.B]).ok) { O.err = null; setBanner('obs', 'Conectando', `Cargando la imagen NISAR del ${fmtDate(O.acqs[i].date, 'y')} desde NASA…`); O.gibsFail = false; try { await ensureAcq(O, i); } catch (e) { O.gibsFail = true; O.gibsMsg = 'NASA GIBS no entregó esa fecha (falla pasajera de su servidor): ' + e.message.slice(0, 90) + '. Prueba de nuevo en unos minutos o elige otra.'; } } obsChanged(); }
+async function selectObs(which, i) {
+  const hz = S.hz, O = S.obs[hz];
+  if (!O?.acqs[i] || O.source === 'unavailable') return;
+  O[which] = i;
+  if (O.source !== 'gibs') { obsChanged(); return; }
+  O.event = ''; O.usedFallback = false; O.notes = [];
+  await loadSelectedPair(hz, O);
+}
+async function loadSelectedPair(hz, O) {
+  const { A, B } = O, request = (O.selectionRequest || 0) + 1;
+  O.selectionRequest = request; O.gibsFail = false; O.series = []; S.multi[hz] = null;
+  detect(hz); renderPanel(); draw();
+  if (!compat(O.acqs[A], O.acqs[B]).ok || O.acqs[A].date >= O.acqs[B].date) return;
+  let error;
+  try { await Promise.all([ensureAcq(O, A), ensureAcq(O, B)]); } catch (e) { error = e; }
+  if (S.obs[hz] !== O || O.selectionRequest !== request || O.A !== A || O.B !== B) return;
+  if (error) { O.gibsFail = true; O.gibsMsg = 'NASA GIBS no entregó ambas imágenes: ' + error.message; }
+  detect(hz);
+  if (S.hz === hz) { renderPanel(); draw(); }
+  loadMulti(hz); nisarSeries(hz);
+}
 
 /* ============================================================================ CONFIRMACIÓN MULTISENSOR (NASA OPERA + VIIRS) */
 // Productos clasificados y validados de NASA, sin clave, por GIBS. Paletas oficiales (OPERA DSWx-S1/HLS y DIST-ALERT, JPL/UMD):
@@ -1686,9 +1754,10 @@ function renderPhysics() {
 /* ---- Serie temporal y animación de pasadas NISAR (misma órbita) ---- */
 function sameTrack(O) { const b = O.acqs[O.B]; if (!b) return []; return O.acqs.map((a, i) => [a, i]).filter(([a]) => (a === b || compat(a, b).ok) && (a.cov0 == null || a.cov0 >= 0.5)).map(([, i]) => i); }
 async function nisarSeries(hz) {
-  const O = S.obs[hz]; if (!O || O.source !== 'gibs' || !O.res) return; const idx = sameTrack(O), N = O.NX * O.NY, px = cellKm2(O), out = [];
+  const O = S.obs[hz]; if (!O || O.source !== 'gibs' || !O.res) return; const selectedB = O.B, request = O.selectionRequest, idx = sameTrack(O), N = O.NX * O.NY, px = cellKm2(O), out = [];
   for (const i of idx) { try { await ensureAcq(O, i); const a = O.acqs[i], ch = k => { const o = new Float32Array(N); for (let p = 0; p < N; p++) { const j = p * 4; o[p] = a.rgba[j + 3] ? a.rgba[j + k] : NaN; } return boxMean(o, O.NX, O.NY, 5); }, r = ch(0), g = ch(1), b = ch(2); let w = 0, v = 0;
     for (let p = 0; p < N; p++) { if (!Number.isFinite(r[p])) continue; v++; const L = r[p] + g[p] + b[p]; if (L > 0 && L < GIBS_WATER.maxL && b[p] / L > GIBS_WATER.minBlue) w++; } if (v / N > 0.8) out.push({ date: a.date, km: w * px }); } catch (e) {} }
+  if (S.obs[hz] !== O || O.B !== selectedB || O.selectionRequest !== request) return;
   O.series = out; if (S.hz === hz) renderMulti();
 }
 let playing = false;
@@ -1929,9 +1998,14 @@ async function syncAll(manual) {
   S.cons = null; jobs.push(ensurePred(S.hz)); jobs.push(ensurePred(S.hz === 'flood' ? 'fire' : 'flood'));
   // Radar: solo si la vista está en «Situación actual» y en vivo (no se toca una escena guardada ni una elección manual).
   for (const hz of ['flood', 'fire']) { const O = S.obs[hz];
-    if (O?.source === 'unavailable') { if (hz === S.hz) jobs.push(loadObsLive(hz, NOW_EV)); else { delete S.obs[hz]; S.multi[hz] = null; } continue; }
-    if (!O || O.source !== 'gibs' || O.savedAt || O.event !== NOW_EV) continue;
+    if (O?.source === 'unavailable') { if (hz === S.hz) jobs.push(loadObsLive(hz, O.event || NOW_EV)); else { delete S.obs[hz]; S.multi[hz] = null; } continue; }
+    if (!O || O.source !== 'gibs' || O.savedAt) continue;
+    if (O.event !== NOW_EV) {
+      if (manual && hz === S.hz && O.gibsFail) jobs.push(loadSelectedPair(hz, O));
+      continue;
+    }
     if (hz === S.hz) jobs.push((async () => { let fresh = null; try { fresh = await cmrPasses(O.bbox); } catch (e) {}
+      if (S.obs[hz] !== O || O.event !== NOW_EV) return;
       if (O.gibsFail || O.usedFallback || fresh && fresh.length && fresh.at(-1).date !== O.acqs.at(-1)?.date) { S.multi[hz] = null; await loadObsLive(hz, NOW_EV); } else await loadMulti(hz); })());
     else { delete S.obs[hz]; S.multi[hz] = null; } }
   const res = await Promise.allSettled(jobs); const bad = res.filter(r => r.status === 'rejected');
