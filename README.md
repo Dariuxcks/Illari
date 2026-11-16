@@ -125,6 +125,14 @@ coeficientes no se entrenaron con esos satélites.**
   - VIIRS confirmó 4 días de fuego en el Casitagua (17–20 sep).
   - El pronóstico avisó 5 de 7 aguaceros fuertes, pero subestimó el del 26 oct (17 mm frente a 58).
 
+## Caso real NISAR reproducible (7–19 oct 2026)
+
+**[Caso NISAR Guayaquil: adquisiciones oficiales, imágenes y límites de la demostración](CASO_NISAR_GUAYAQUIL.md)**.
+
+Se verificaron en NASA CMR **dos escenas GCOV PROVISIONAL reales** del track 112, descendente, frame 090, polarización DHDH, adquiridas el **7 y 19 de octubre de 2026**. GitHub Actions descargó las visualizaciones en falso color NASA GIBS de ambas fechas y generó una comparación RGB preliminar. **No se han procesado valores de retrodispersión GCOV calibrados.** El 7,95 % reportado corresponde a píxeles que superaron un umbral arbitrario de diferencia RGB y **no representa superficie inundada**.
+
+En el inventario de junio a noviembre no se encontró un par compatible que abarque el evento **26 oct 2026** y cubra el centro urbano: el caso 7–19 de octubre **no demuestra esa inundación**. Informes y PNG reproducibles: [ejecución GitHub Actions](https://github.com/Dariuxcks/Illari/actions/runs/43781984829).
+
 ## Cumplimiento del desafío «Dancing with the SARs» (1.3.0)
 
 - **Aplicación interactiva con datos NISAR para seguir cambios en la superficie:** inundaciones en Guayaquil e incendios en Quito, con mapa de cambios, comparador ⇆, serie temporal animada y tablero por sector.
