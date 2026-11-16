@@ -133,6 +133,10 @@ Se verificaron en NASA CMR **dos escenas GCOV PROVISIONAL reales** del track 112
 
 En el inventario de junio a noviembre no se encontró un par compatible que abarque el evento **26 oct 2026** y cubra el centro urbano: el caso 7–19 de octubre **no demuestra esa inundación**. Informes y PNG reproducibles: [ejecución GitHub Actions](https://github.com/Dariuxcks/Illari/actions/runs/43781984829).
 
+## Contraste inicial GCOV–OPERA (6–19 oct 2026)
+
+**[Informe de cruce NISAR GCOV con OPERA DSWx-S1](CASO_NISAR_OPERA_GUAYAQUIL.md).** Se compararon bandas científicas NISAR HH/HV de **7 y 19 oct** con mosaicos cartográficos OPERA de **6 y 18 oct**. El cruce de umbrales exploratorios identifica solo **7 celdas nominales de 10 m** en común entre agua abierta aparente nueva según OPERA y caída conjunta HH/HV según NISAR. El resultado evidencia una **corroboración muy limitada** y **no es una superficie inundada validada**; la cartografía OPERA procede de PNG GIBS remuestreados, no de sus GeoTIFF WTR originales. Las cuatro fechas preceden al evento del 26 oct y no prueban esa inundación.
+
 ## Cumplimiento del desafío «Dancing with the SARs» (1.3.0)
 
 - **Aplicación interactiva con datos NISAR para seguir cambios en la superficie:** inundaciones en Guayaquil e incendios en Quito, con mapa de cambios, comparador ⇆, serie temporal animada y tablero por sector.
