@@ -109,7 +109,8 @@ def pairs_from(scenes):
         center = a["center_covered"] and b["center_covered"]
         m = {"VALIDATED":3,"PROVISIONAL":2,"BETA":1}[a["maturity"]]
         lag = abs((dt.date.fromisoformat(b["date"])-dt.date.fromisoformat(EVENT)).days)
-        return (int(crosses),int(center),m,-lag)
+        gap = (dt.date.fromisoformat(b["date"]) - dt.date.fromisoformat(a["date"])).days
+        return (int(crosses),int(center),m,-lag,-gap)
     return sorted(output,key=score,reverse=True)
 
 def main():
@@ -124,10 +125,15 @@ def main():
             errors.append(collection+": "+type(e).__name__+": "+str(e))
     candidates=pairs_from(all_scenes)
     selected=list(candidates[0]) if candidates else None
-    status="PAR_CMR_IDENTIFICADO" if selected else "CMR_INACCESIBLE" if errors and not all_scenes else "SIN_PAR_COMPATIBLE"
+    event_pairs = [p for p in candidates if p[0]["date"] < EVENT <= p[1]["date"] and
+                   p[0]["center_covered"] and p[1]["center_covered"]]
+    status=("PAR_ANTES_DESPUES_EVENTO" if selected and event_pairs else
+            "PAR_SOLO_CONTEXTO_PREVIO_O_POSTERIOR" if selected else
+            "CMR_INACCESIBLE" if errors and not all_scenes else "SIN_PAR_COMPATIBLE")
     result={"status":status,"actualizado_utc":dt.datetime.now(dt.timezone.utc).isoformat(),
       "zona":BBOX,"evento":EVENT,"consultas":counts,"escenas":len(all_scenes),
-      "pares_compatibles":len(candidates),"par":selected,"errores":errors,
+      "pares_compatibles":len(candidates),"pares_que_cruzan_evento":len(event_pairs),
+      "par":selected,"candidatos_principales":[list(p) for p in candidates[:12]],"errores":errors,
       "pixels_GCOV_analizados":False,"superficie_inundada_km2":None}
     folder=pathlib.Path("reports")
     folder.mkdir(exist_ok=True)
@@ -136,7 +142,9 @@ def main():
       "Evento de contexto: inundaciones reportadas el 26 de octubre de 2026.",
       "Fuente de metadatos: NASA CMR / ASF; bbox: "+BBOX+".", "",
       "**Resultado de catálogo:** "+status+".",
-      "Escenas candidatas: "+str(len(all_scenes))+"; pares comparables: "+str(len(candidates))+".", "",
+      "Escenas candidatas: "+str(len(all_scenes))+"; pares comparables: "+str(len(candidates))+".",
+      "Pares que cruzan el 26 de octubre y abarcan el centro urbano: "+str(len(event_pairs))+".",
+      "ADVERTENCIA: si ese número es cero, NO existe evidencia SAR antes/después del evento en este inventario.", "",
       "**Alcance:** solamente metadatos de adquisiciones; no se han descargado imágenes GCOV ni medido áreas inundadas.", ""]
     if selected:
         a,b=selected
@@ -157,6 +165,14 @@ def main():
             if x["browse"]:lines.append("- Vista previa "+title+": "+x["browse"])
     else:
         lines.append("No hay evidencia suficiente para elegir dos adquisiciones. No inventar fechas ni resultados.")
+    if candidates:
+        lines+=["","## Otros pares comparables del catálogo (metadatos; no imágenes)", "",
+            "| Antes | Después | Track | Frame | Madurez | Centro | Cruza evento |",
+            "|---|---|---|---|---|---|---|"]
+        for a,b in candidates[:12]:
+            lines.append("| "+a["date"]+" | "+b["date"]+" | "+a["track"]+" | "+a["frame"]+
+                         " | "+a["maturity"]+" | "+str(a["center_covered"] and b["center_covered"])+
+                         " | "+str(a["date"] < EVENT <= b["date"])+" |")
     if errors:
         lines+=["","## Errores de consulta"]+["- "+e for e in errors]
     lines += ["","## Próximo paso necesario","",
@@ -166,6 +182,7 @@ def main():
       "Fuentes: https://nisar-docs.asf.alaska.edu/gcov/ ; https://nisar-docs.asf.alaska.edu/availability-overview/",""]
     (folder/"nisar_guayaquil_cmr.md").write_text("\n".join(lines),encoding="utf-8")
     print(json.dumps({"status":status,"scenes":len(all_scenes),"pairs":len(candidates),
+                      "cross_event_pairs":len(event_pairs),
                       "chosen":[a["id"] for a in selected] if selected else None,
                       "errors":errors},ensure_ascii=False,indent=2))
 
