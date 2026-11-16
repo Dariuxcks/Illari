@@ -1,5 +1,7 @@
 # ILLARI — Caso reproducible NISAR Guayaquil (7 y 19 de octubre de 2026)
 
+> **Seguimiento del caso.** Esta ficha documenta la primera etapa de catálogo y visualización RGB. El análisis posterior de los recortes GCOV calibrados se puede explorar en el [visor HH/HV](https://dariuxcks.github.io/Illari/docs/demostracion/visor.html). La [guía de demostración](docs/demostracion/README.md) explica la diferencia entre los dos productos y el alcance del contraste con OPERA.
+
 **Ideador y director:** Darío Proaño · **Diseño y código:** Anthony Cisneros (rxn1n)  
 **Estado:** inventario **real de CMR comprobado** + visualización **real de NASA GIBS**; aún **sin validación de cambios en valores GCOV calibrados ni superficie inundada**.  
 **Fecha de ejecución:** 15 de noviembre de 2026 (hora Ecuador; UTC 16 de noviembre).

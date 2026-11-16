@@ -22,6 +22,12 @@ Plataforma web **de código abierto (MIT)** que convierte datos de observación 
 ILLARI **separa siempre la evidencia satelital de las estimaciones**: el modo Observado tiene borde sólido verde,
 y el modo Estimado borde punteado ámbar. Cada vista lleva su sello y cada resultado su procedencia.
 
+## Demostración para el jurado
+
+En Guayaquil, dos pasadas NISAR permiten explorar 12 días de cambio en la señal del radar. El visor compara las mediciones calibradas HH y HV del 7 y el 19 de octubre de 2026. El equipo puede mostrar el antes y el después, localizar aumentos y disminuciones y explicar el alcance del contraste con OPERA.
+
+**[Abrir el visor interactivo](https://dariuxcks.github.io/Illari/docs/demostracion/visor.html)** · [Guía de 90 segundos y prioridades](docs/demostracion/README.md) · [Descargar la presentación](https://raw.githubusercontent.com/Dariuxcks/Illari/main/docs/demostracion/ILLARI_guia_demostracion.pptx) · [Ver el mapa](docs/demostracion/mapa.png)
+
 ## Sincronizado al momento (1.5.0)
 
 Al abrir, ILLARI muestra la **Situación actual** y se actualiza sola cada 30 minutos (también con el botón **Actualizar**). Arriba del panel indica la hora de la última sincronización.
@@ -36,7 +42,7 @@ Al abrir, ILLARI muestra la **Situación actual** y se actualiza sola cada 30 mi
 
 - El **titular** del modo Observado muestra posibles cambios NISAR **corroborados** mediante productos OPERA/VIIRS. «Corroboración multisensor» no significa validación independiente en terreno. El agua nueva requiere cambio entre mapas OPERA anteriores y posteriores; la presencia de agua en una sola fecha no basta. Lo que identifica únicamente NISAR aparece separado como «solo radar».
 - **Lluvia medida frente a modelada:** la tarjeta IMERG pone lado a lado la lluvia observada por satélite y la que reconstruye el modelo que alimenta el pronóstico.
-- **Robustez:** si NASA GIBS falla de forma pasajera, ILLARI reintenta, usa otra fecha válida y lo explica, sin pasar a la escena simulada. Las diferencias de calibración entre fechas (p. ej. PROVISIONAL frente a VALIDATED) se descuentan con una normalización local de ~7 km.
+- **Robustez:** si NASA GIBS falla de forma pasajera, ILLARI reintenta, usa otra fecha válida y lo explica, sin pasar a la escena simulada. El modo Observado exige que los dos mosaicos tengan la misma madurez documentada.
 
 ## Uso
 
@@ -129,7 +135,7 @@ coeficientes no se entrenaron con esos satélites.**
 
 **[Caso NISAR Guayaquil: adquisiciones oficiales, imágenes y límites de la demostración](CASO_NISAR_GUAYAQUIL.md)**.
 
-Se verificaron en NASA CMR **dos escenas GCOV PROVISIONAL reales** del track 112, descendente, frame 090, polarización DHDH, adquiridas el **7 y 19 de octubre de 2026**. GitHub Actions descargó las visualizaciones en falso color NASA GIBS de ambas fechas y generó una comparación RGB preliminar. **No se han procesado valores de retrodispersión GCOV calibrados.** El 7,95 % reportado corresponde a píxeles que superaron un umbral arbitrario de diferencia RGB y **no representa superficie inundada**.
+Se verificaron en NASA CMR **dos escenas GCOV PROVISIONAL reales** del track 112, descendente, frame 090, polarización DHDH, adquiridas el **7 y 19 de octubre de 2026**. GitHub Actions descargó las visualizaciones en falso color NASA GIBS de ambas fechas y generó una comparación RGB preliminar. El [visor del caso](https://dariuxcks.github.io/Illari/docs/demostracion/visor.html) muestra por separado el análisis de los recortes GCOV calibrados. El 7,95 % reportado corresponde a píxeles que superaron un umbral arbitrario de diferencia RGB y **no representa superficie inundada**.
 
 En el inventario de junio a noviembre no se encontró un par compatible que abarque el evento **26 oct 2026** y cubra el centro urbano: el caso 7–19 de octubre **no demuestra esa inundación**. Informes y PNG reproducibles: [ejecución GitHub Actions](https://github.com/Dariuxcks/Illari/actions/runs/43781984829).
 
