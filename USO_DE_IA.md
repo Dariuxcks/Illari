@@ -12,7 +12,7 @@ El código y los datos generados con IA deben reconocerlo en su texto descriptiv
 | README, guía, resumen técnico y ficha técnica | Sí | Redactados con Claude; aprobados por la dirección del proyecto. |
 | Revisión del selector NISAR y caso de demostración de Guayaquil | Sí | ChatGPT (OpenAI) asistió en la corrección y las pruebas del selector CMR/GIBS y en la preparación del visor, el mapa, la guía y la presentación. El visor y el mapa representan mediciones de los recortes GCOV entregados por el equipo. |
 | Datos satelitales y de pronóstico | No | Se leen en vivo de NASA (CMR, GIBS) y Open-Meteo, sin modificación por IA. |
-| Imágenes y video del pitch | A definir | Si se usa IA para imágenes o video, deben llevar una marca de agua visible que diga que son generados por IA. |
+| Material de evaluación English / Spanish | Sí | ChatGPT asistió en la redacción, traducción y construcción de las presentaciones y visores. Los mapas reproducen mediciones de radar del equipo. El recuadro A identifica un subconjunto de su malla. |
 
 **Responsabilidad.** El equipo verifica cada resultado antes de presentarlo. Ninguna cifra de la escena simulada debe presentarse como medición.
 

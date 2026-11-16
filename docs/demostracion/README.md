@@ -1,4 +1,6 @@
-# ILLARI ante el reto *Dancing with the SARs*
+# Spanish · Guayaquil vista por radar
+
+[English](guide-en.md) · **Spanish**
 
 [Explorar el caso de Guayaquil](https://dariuxcks.github.io/Illari/docs/demostracion/visor.html) · [Leer la presentación en PDF](ILLARI_guia_demostracion.pdf) · [Descargar PowerPoint](ILLARI_guia_demostracion.pptx) · [Mapa comparativo](mapa.png) · [Visor para uso sin conexión](visor.html)
 
@@ -20,15 +22,19 @@ El panel **Cambio de señal** muestra simultáneamente la diferencia para la pol
 
 Las adquisiciones también se pueden localizar en **Guayaquil → Observado** del tablero principal. Las filas del 7 y 19 de octubre con **T112 D · F090 · DHDH · PROVISIONAL** corresponden al par documentado. El visor del caso conserva ese intervalo para consultas posteriores. [Tablero público](https://dariuxcks.github.io/Illari/)
 
+### Localizar la ventana A
+
+El recuadro A marca una zona de 500 × 500 m centrada en 2,14843° S, 79,91730° O. Al alternar HH y HV, el contorno conserva su posición. En sus 2.500 píxeles, la mediana del cambio fue +0,67 dB en HH y +0,64 dB en HV. Se eligió para ilustrar un aumento local. Puede ocultarse con «Mostrar el recuadro A». [Reproducir estos valores](reproduce.md)
+
 ## Interpretación ambiental
 
 El contraste exploratorio con OPERA DSWx-S1 utilizó mapas de agua de los días **6 y 18 de octubre**, cada uno un día anterior a la observación NISAR correspondiente. En el área común, la regla de disminución simultánea en HH y HV identificó **5265 celdas**. OPERA marcó **1413 celdas equivalentes** como agua abierta nueva aparente. Ambas reglas coincidieron en **7 celdas**, aproximadamente el **0,50 %** de las señaladas por OPERA. La comparación usó mosaicos de visualización OPERA remuestreados a la malla NISAR. Esa coincidencia limitada deja abierta la interpretación hidrológica. Además, la tormenta del 26 de octubre sucedió después de las cuatro observaciones. [Método, umbrales y resultados](../../CASO_NISAR_OPERA_GUAYAQUIL.md)
 
-## Prioridades pendientes
+## Validación y reproducibilidad
 
-| Prioridad | Qué falta | Qué permitiría comprobar |
+| Tema | Estado o siguiente paso | Qué permite comprobar |
 |---|---|---|
 | Científica | Estudiar un episodio documentado con observaciones compatibles anteriores y posteriores, usar bandas de agua WTR originales de OPERA y contrastarlas con una referencia independiente sobre el terreno. | Cuántas zonas inundadas se identifican correctamente y dónde aparecen omisiones o falsas alarmas. |
-| Reproducibilidad | Conservar junto al análisis los recortes científicos o sus instrucciones de extracción y el procedimiento de cálculo de diferencias. | Que un tercero pueda regenerar los mapas y las medianas desde los productos originales. |
+| Reproducibilidad | El código público regenera los dos mapas de diferencia NISAR y sus medianas a partir de los GCOV originales o de los cuatro GeoTIFF. | Un tercero puede comprobar las cifras del recorte y la ventana A. [Datos y comandos](reproduce.md) |
 
 Datos de NASA–ISRO NISAR distribuidos por ASF DAAC. Ideación y dirección del proyecto, Darío Proaño. Diseño y código de ILLARI, Anthony Cisneros (rxn1n). Esta evaluación se preparó con asistencia de ChatGPT.

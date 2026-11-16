@@ -44,6 +44,6 @@ OPERA: en el catálogo oficial NASA CMR se encontraron **21 productos** en la ca
 - [Sondeo oficial OPERA: código fuente](tools/sondear_opera_dswx.py).
 - [Consulta NISAR GCOV en CMR](tools/nisar_guayaquil_cmr.py).
 - [Ejecución GitHub Actions con datos OPERA y sus PNG](https://github.com/Dariuxcks/Illari/actions/runs/43790524771).
-- Los resultados cuantitativos, la figura comparativa y cuatro archivos raster de máscaras están disponibles en el paquete de análisis generado en la conversación; no se afirma que estén subidos a GitHub.
+- [Mediciones GCOV y procedimiento reproducible](docs/demostracion/reproduce.md). Se pueden regenerar los dos rásteres de diferencias y las medianas del caso NISAR. El cruce OPERA de esta tabla está documentado como análisis exploratorio histórico; las máscaras de ese cruce no forman parte del paquete público.
 
 **Conclusión limitada:** se demostró la capacidad de efectuar una comparación pixel a pixel entre datos GCOV NISAR calibrados y cartografía OPERA DSWx-S1 próxima en el tiempo. Las **7 celdas coincidentes no constituyen una estimación validada de inundación**. Es necesario trabajar con WTR originales y contrastar contra referencia externa antes de usar la clasificación operativamente.
