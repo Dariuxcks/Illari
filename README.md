@@ -22,11 +22,11 @@ Plataforma web **de código abierto (MIT)** que convierte datos de observación 
 ILLARI **separa siempre la evidencia satelital de las estimaciones**: el modo Observado tiene borde sólido verde,
 y el modo Estimado borde punteado ámbar. Cada vista lleva su sello y cada resultado su procedencia.
 
-## Demostración para el jurado
+## Evaluación del caso de Guayaquil
 
-En Guayaquil, dos pasadas NISAR permiten explorar 12 días de cambio en la señal del radar. El visor compara las mediciones calibradas HH y HV del 7 y el 19 de octubre de 2026. El equipo puede mostrar el antes y el después, localizar aumentos y disminuciones y explicar el alcance del contraste con OPERA.
+**[Leer la presentación ilustrada (PDF)](https://dariuxcks.github.io/Illari/docs/demostracion/ILLARI_guia_demostracion.pdf)** · [Guía escrita de uso y resultados](docs/demostracion/README.md) · [Abrir el visor](https://dariuxcks.github.io/Illari/docs/demostracion/visor.html) · [PowerPoint](https://raw.githubusercontent.com/Dariuxcks/Illari/main/docs/demostracion/ILLARI_guia_demostracion.pptx)
 
-**[Abrir el visor interactivo](https://dariuxcks.github.io/Illari/docs/demostracion/visor.html)** · [Guía de 90 segundos y prioridades](docs/demostracion/README.md) · [Descargar la presentación](https://raw.githubusercontent.com/Dariuxcks/Illari/main/docs/demostracion/ILLARI_guia_demostracion.pptx) · [Ver el mapa](docs/demostracion/mapa.png)
+La evaluación se realiza por escrito. La presentación incluye el mapa y las conclusiones para su lectura independiente. El visor permite comprobar dónde aumentó o disminuyó la señal del radar entre el 7 y el 19 de octubre de 2026. En los dos canales de los productos NISAR GCOV calibrados, la mediana de la diferencia entre fechas fue **+0,23 dB en HH** y **+0,13 dB en HV**. Ambas pasadas preceden a la tormenta del 26 de octubre. [Mapa completo](docs/demostracion/mapa.png) · [Contraste con OPERA](CASO_NISAR_OPERA_GUAYAQUIL.md)
 
 ## Sincronizado al momento (1.5.0)
 

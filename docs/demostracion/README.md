@@ -1,30 +1,34 @@
-# Cómo demostrar el caso NISAR de Guayaquil
+# ILLARI ante el reto *Dancing with the SARs*
 
-[Abrir el visor interactivo](https://dariuxcks.github.io/Illari/docs/demostracion/visor.html) · [Descargar la presentación](ILLARI_guia_demostracion.pptx) · [Ver el mapa](mapa.png) · [Archivo del visor para uso sin conexión](visor.html)
+[Explorar el caso de Guayaquil](https://dariuxcks.github.io/Illari/docs/demostracion/visor.html) · [Leer la presentación en PDF](ILLARI_guia_demostracion.pdf) · [Descargar PowerPoint](ILLARI_guia_demostracion.pptx) · [Mapa comparativo](mapa.png) · [Visor para uso sin conexión](visor.html)
 
-*Dancing with the SARs* propone utilizar radar NISAR en una aplicación interactiva para seguir y visualizar cambios en la superficie terrestre. En Guayaquil, ILLARI permite examinar dónde y cuánto cambió la señal que regresó al radar entre dos pasadas separadas por 12 días. La atribución de esos cambios a un fenómeno concreto sigue abierta. [Enunciado publicado por la sede de Sonoma](https://edeon.sonoma.edu/nasaspaceapps-26/index.html)
+**Resultado de la evaluación.** ILLARI demuestra que una persona puede usar observaciones NISAR reales para localizar y cuantificar cambios de la señal radar en la superficie de Guayaquil. El caso compara el mismo recorte urbano los días **7 y 19 de octubre de 2026**. El reto pide una aplicación interactiva para seguir y visualizar cambios en la superficie terrestre mediante NISAR. Este caso aporta evidencia de esa capacidad en una ciudad y un intervalo concreto. La identificación de la causa física de los cambios, incluida una posible inundación, requiere validación adicional. [Enunciado publicado por la sede de Sonoma](https://edeon.sonoma.edu/nasaspaceapps-26/index.html)
 
-## Qué puede comprobar el jurado
+## Qué objetivos pueden comprobarse
 
-| Objetivo | Evidencia que se puede abrir | Alcance del caso |
+| Objetivo | Evidencia disponible | Alcance |
 |---|---|---|
-| Utilizar observaciones NISAR reales | La ficha del par identifica dos productos GCOV PROVISIONAL del 7 y 19 de octubre de 2026, con track 112 descendente, frame 090, modo 4005 y polarización DHDH. [Adquisiciones y procedencia](../../CASO_NISAR_GUAYAQUIL.md) | El tablero en vivo usa mosaicos diarios GIBS en falso color. El visor del caso usa los valores calibrados HH y HV extraídos de los GCOV. |
-| Comparar la misma zona entre dos fechas | El divisor conserva el encuadre al alternar ambas fechas. Los cuatro recortes comparten una malla de 1335 × 1327 píxeles de 10 m en UTM 17S. [Visor](https://dariuxcks.github.io/Illari/docs/demostracion/visor.html) | Las vistas de pantalla tienen resolución reducida. El cálculo usa la malla original del recorte urbano. |
-| Localizar y cuantificar cambios | El mapa de diferencia resta, píxel por píxel, la señal del 7 a la del 19. Las medianas del cambio son **+0,23 dB en HH** y **+0,13 dB en HV**. [Mapa de ambas polarizaciones](mapa.png) | Los valores resumen el cambio de señal dentro del recorte. Determinar la causa física exige otras observaciones. |
+| Utilizar radar NISAR real | Dos productos GCOV PROVISIONAL comparten track 112 descendente, frame 090, modo 4005 y polarización DHDH. Sus identificadores y horas de adquisición constan en la ficha del par. [Procedencia](../../CASO_NISAR_GUAYAQUIL.md) | El tablero en vivo presenta mosaicos diarios GIBS en falso color. El visor de este caso emplea valores calibrados extraídos de los GCOV. |
+| Permitir una comparación interactiva | El divisor permite examinar el mismo lugar en las dos fechas. Los controles HH y HV cambian la polarización de las dos imágenes y del mapa de diferencias. [Visor del caso](https://dariuxcks.github.io/Illari/docs/demostracion/visor.html) | Los cuatro recortes comparten una malla de 1335 × 1327 píxeles de 10 m en UTM 17S. Las vistas se redujeron para la pantalla después del cálculo. |
+| Localizar y cuantificar el cambio | Para cada píxel se restó la señal del día 7 a la del día 19, expresada en decibelios. Las medianas de esas diferencias son **+0,23 dB en HH** y **+0,13 dB en HV**. [Mapa de ambas polarizaciones](mapa.png) | Los valores describen el retorno del radar en el recorte analizado. La humedad, la vegetación y la estructura de la superficie pueden influir en ese retorno. |
 
-## Demostración de 90 segundos
+## Cómo leer el visor
 
-| Tiempo | Qué hacer | Qué señalar en pantalla |
+El panel **Antes y después** abre con la polarización **HH**, en la que el radar emite y recibe la señal en horizontal. Al mover **Posición del divisor** sobre la ribera, se alternan las adquisiciones del 7 y del 19 con el encuadre y la escala de grises fijos. La barra de 2 km proporciona una referencia espacial. Al elegir **HV**, se observa el componente recibido en vertical tras una emisión horizontal.
+
+El panel **Cambio de señal** muestra simultáneamente la diferencia para la polarización elegida. El **azul** indica que el 19 llegó menos señal al radar, el **naranja** que llegó más y los tonos próximos al blanco indican diferencias cercanas a cero. Los extremos de la escala corresponden a cambios de −6 dB o inferiores y de +6 dB o superiores. La cifra bajo el mapa resume todo el recorte. Una mediana cercana a cero puede coexistir con áreas locales de aumento y disminución.
+
+Las adquisiciones también se pueden localizar en **Guayaquil → Observado** del tablero principal. Las filas del 7 y 19 de octubre con **T112 D · F090 · DHDH · PROVISIONAL** corresponden al par documentado. El visor del caso conserva ese intervalo para consultas posteriores. [Tablero público](https://dariuxcks.github.io/Illari/)
+
+## Interpretación ambiental
+
+El contraste exploratorio con OPERA DSWx-S1 utilizó mapas de agua de los días **6 y 18 de octubre**, cada uno un día anterior a la observación NISAR correspondiente. En el área común, la regla de disminución simultánea en HH y HV identificó **5265 celdas**. OPERA marcó **1413 celdas equivalentes** como agua abierta nueva aparente. Ambas reglas coincidieron en **7 celdas**, aproximadamente el **0,50 %** de las señaladas por OPERA. La comparación usó mosaicos de visualización OPERA remuestreados a la malla NISAR. Esa coincidencia limitada deja abierta la interpretación hidrológica. Además, la tormenta del 26 de octubre sucedió después de las cuatro observaciones. [Método, umbrales y resultados](../../CASO_NISAR_OPERA_GUAYAQUIL.md)
+
+## Prioridades pendientes
+
+| Prioridad | Qué falta | Qué permitiría comprobar |
 |---|---|---|
-| 0–20 s | En el tablero, elegir **Guayaquil → Observado → Situación actual**. Seleccionar **Antes 7 oct. 2026** y **Después 19 oct. 2026**, ambos **T112 D · F090 · DHDH · PROVISIONAL**. | Mostrar las fechas y el frame que hacen identificable el par. [Tablero público](https://dariuxcks.github.io/Illari/) |
-| 20–45 s | Abrir el visor del caso, pulsar **HH** y mover **Posición del divisor** sobre un mismo tramo de la ribera. | El panel izquierdo muestra las dos pasadas con idéntica escala. En el derecho, el azul indica menor retorno del radar el día 19 y el naranja indica mayor retorno. |
-| 45–65 s | Pulsar **HV**. Leer el valor debajo del mapa y volver a **HH** para compararlo. | La mediana cambia de **+0,13** a **+0,23 dB**. Una mediana cercana a cero puede coexistir con aumentos y disminuciones locales. |
-| 65–90 s | Cerrar con la fecha de la tormenta y el resultado del contraste con OPERA. | Ambas pasadas preceden al **26 de octubre**. En el cruce exploratorio coincidieron **7 de 1413 celdas** clasificadas por OPERA como agua abierta nueva aparente. Esa coincidencia limitada deja pendiente validar la detección de inundaciones. [Método y resultados](../../CASO_NISAR_OPERA_GUAYAQUIL.md) |
+| Científica | Estudiar un episodio documentado con observaciones compatibles anteriores y posteriores, usar bandas de agua WTR originales de OPERA y contrastarlas con una referencia independiente sobre el terreno. | Cuántas zonas inundadas se identifican correctamente y dónde aparecen omisiones o falsas alarmas. |
+| Reproducibilidad | Conservar junto al análisis los recortes científicos o sus instrucciones de extracción y el procedimiento de cálculo de diferencias. | Que un tercero pueda regenerar los mapas y las medianas desde los productos originales. |
 
-## Prioridades del equipo
-
-1. **Cerrar la entrega formal.** La persona responsable del equipo debe comprobar la ficha **Team → Project**, enlazar el tablero y el visor, citar los datos NASA, declarar la asistencia de Claude y ChatGPT y conservar el comprobante del envío. El plazo anunciado fue el **15 de noviembre de 2026 a las 23:59**, en la zona horaria asignada al equipo. La documentación registra calibración el 12 de noviembre. Corresponde a la sede resolver cualquier duda sobre la cronología y la elegibilidad. [Indicaciones del equipo organizador](https://github.com/nasa/spaceapps/discussions/1916) · [Declaración del proyecto](../../USO_DE_IA.md)
-2. **Ensayar el recorrido desde el enlace público.** Verificar ambas polarizaciones y las dos medianas, y tener a mano el mapa y el HTML descargado para presentar si falla la red. El modo Estimado y sus pronósticos pueden presentarse aparte.
-3. **Validar un episodio de inundación.** Elegir un evento documentado con adquisiciones compatibles anteriores y posteriores, comparar con los rásteres de agua WTR originales de OPERA, controlar el desfase de fechas y confrontar el resultado con una referencia independiente. Esa evaluación permitiría estimar aciertos, omisiones y falsas alarmas. [Contraste exploratorio ya realizado](../../CASO_NISAR_OPERA_GUAYAQUIL.md)
-
-Datos de NASA–ISRO NISAR distribuidos por ASF DAAC. Ideación y dirección del proyecto, Darío Proaño. Diseño y código de ILLARI, Anthony Cisneros (rxn1n). Esta guía se preparó con asistencia de ChatGPT.
+Datos de NASA–ISRO NISAR distribuidos por ASF DAAC. Ideación y dirección del proyecto, Darío Proaño. Diseño y código de ILLARI, Anthony Cisneros (rxn1n). Esta evaluación se preparó con asistencia de ChatGPT.
