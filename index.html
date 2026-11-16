@@ -1305,6 +1305,10 @@ function sampleToGrid(img, bb, NX, NY) {   // de la imagen Mercator de NASA a la
   return { rgba: out, cov: cov / (NX * NY) };
 }
 const polClass = p => !p ? null : /^S[HV]/.test(p) ? 'simple' : 'dual';
+// Niveles de madurez publicados por ASF, tomados del nombre de colección CMR.
+const nisarMaturity = name => /_BETA_V[0-9]/i.test(name || '') ? 'BETA' :
+  /_PROVISIONAL_V[0-9]/i.test(name || '') ? 'PROVISIONAL' :
+  /_GCOV_V[0-9]/i.test(name || '') ? 'VALIDATED' : 'DESCONOCIDA';
 function inPoly(la, lo, pts) { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [ai, oi] = pts[i], [aj, oj] = pts[j]; if ((ai > la) !== (aj > la) && lo < (oj - oi) * (la - ai) / (aj - ai) + oi) c = !c; } return c; }
 function bboxCover(bb, polys) { if (!polys.length) return null; let n = 0, k = 0; for (let r = 0; r < 10; r++) for (let c = 0; c < 10; c++) { const la = bb.s + (r + 0.5) / 10 * (bb.n - bb.s), lo = bb.w + (c + 0.5) / 10 * (bb.e - bb.w); n++; if (polys.some(p => inPoly(la, lo, p))) k++; } return k / n; }
 async function cmrPasses(bb) {
@@ -1313,39 +1317,53 @@ async function cmrPasses(bb) {
   const j = await getJSON('https://cmr.earthdata.nasa.gov/search/granules.json?' + q, 25000), byDate = new Map();
   // Un día de GIBS = mosaico de las pasadas de ese día (UTC). Se agrupan los granules por fecha para conocer su geometría real.
   for (const en of j.feed?.entry || []) { const nm = parseName(en.title), d = (en.time_start || '').slice(0, 10) || nm.d1; if (!d || !nm.track) continue;
-    const g = byDate.get(d) || { date: d, tracks: new Set(), dirs: new Set(), frames: new Set(), pols: new Set(), times: [], titles: [], colls: new Set(), polys: [] }; g.polys.push(...cmrPolys(en));
-    g.tracks.add(nm.track); g.dirs.add(nm.dir); g.frames.add(nm.frame); if (nm.pol) g.pols.add(nm.pol); g.times.push((en.time_start || '').slice(11, 16)); g.titles.push(en.title); g.colls.add((en.dataset_id || '').replace(/^NISAR\s*/, '').replace(/Geocoded Polarimetric Covariance Product/, 'GCOV').trim()); byDate.set(d, g); }
-  return [...byDate.values()].sort((a, b) => a.date < b.date ? -1 : 1).map(g => { const pols = [...g.pols], best = pols.find(p => !/^S/.test(p)) || pols[0];
-    return { date: g.date, track: [...g.tracks].sort().join('/'), dir: [...g.dirs].sort().join('+'), frame: [...g.frames].sort().join('/'), pol: best, polc: polClass(best), polsAll: pols.join('/'),
+    const g = byDate.get(d) || { date: d, tracks: new Set(), dirs: new Set(), frames: new Set(), pols: new Set(), maturities: new Set(), times: [], titles: [], colls: new Set(), polys: [] }; g.polys.push(...cmrPolys(en));
+    g.tracks.add(nm.track); g.dirs.add(nm.dir); g.frames.add(nm.frame); if (nm.pol) g.pols.add(nm.pol); g.times.push((en.time_start || '').slice(11, 16)); g.titles.push(en.title); g.colls.add((en.dataset_id || '').replace(/^NISAR\s*/, '').replace(/Geocoded Polarimetric Covariance Product/, 'GCOV').trim()); g.maturities.add(nisarMaturity((en.dataset_id || '') + ' ' + (en.title || ''))); byDate.set(d, g); }
+  return [...byDate.values()].sort((a, b) => a.date < b.date ? -1 : 1).map(g => { const pols = [...g.pols].sort(), kinds = [...new Set(pols.map(polClass))], best = pols.find(p => !/^S/.test(p)) || pols[0], levels = [...g.maturities];
+    return { date: g.date, track: [...g.tracks].sort().join('/'), dir: [...g.dirs].sort().join('+'), frame: [...g.frames].sort().join('/'), pol: best, polc: kinds.length === 1 ? kinds[0] : 'mixta', polsAll: pols.join('/'), maturity: levels.length === 1 ? levels[0] : 'MIXTA',
       hora: [...new Set(g.times)].sort()[0] + ' UTC', title: g.titles[0], ngran: g.titles.length, coleccion: [...g.colls].join(' + '), cov0: bboxCover(bb, g.polys) }; });
 }
 async function scanPasses(bb) {   // respaldo si CMR no responde: se prueba cada día en GIBS con una imagen diminuta (sin geometría verificable)
   const days = []; for (let d = 0; d < 90; d++) { const day = addDays(TODAY, -d); if (day < NISAR_GIBS_START) break; days.push(day); }
-  const found = []; const worker = async () => { while (days.length) { const day = days.shift(); try { const img = await fetchPixels(wmsUrl(NISAR_LAYER, day, bb, 32, 32), 15000); let n = 0; for (let i = 3; i < img.data.length; i += 4) if (img.data[i]) n++; if (n > 0.15 * 1024) found.push({ date: day }); } catch (e) {} } };
+  const found = []; const worker = async () => { while (days.length) { const day = days.shift(); try { const img = await fetchPixels(wmsUrl(NISAR_LAYER, day, bb, 32, 32), 15000); let n = 0; for (let i = 3; i < img.data.length; i += 4) if (img.data[i]) n++; if (n > 0.15 * 1024) found.push({ date: day, geometryVerified: false }); } catch (e) {} } };
   await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
   return found.sort((a, b) => a.date < b.date ? -1 : 1);
 }
 const dirName = d => d === 'A' ? 'ascendente' : d === 'D' ? 'descendente' : d && d.includes('+') ? 'ascendente y descendente el mismo día' : '¿?';
-// Compatibilidad técnica de un par SAR: misma geometría (track y dirección), mismo modo de polarización y mismo producto.
+// Compatibilidad conservadora SAR: mosaicos GIBS requieren geometría documentada por CMR.
 function compat(a, b) {
   if (!a || !b) return { ok: false, motivo: 'Faltan fechas.' };
   if (a.prod !== b.prod) return { ok: false, motivo: `Productos distintos (${a.prod} frente a ${b.prod}).` };
   if (a.simulated && b.simulated) return { ok: true };
-  if (!a.track || !b.track || !a.dir || !b.dir) return { ok: false, motivo: 'No se puede verificar la geometría de una de las fechas: el catálogo o el nombre del archivo no indican track y dirección.' };
-  if (a.dir.includes('+') || b.dir.includes('+')) return { ok: false, motivo: 'Ese día NASA unió una pasada ascendente y otra descendente en el mismo mosaico: la geometría no es única.' };
-  if (a.track !== b.track || a.dir !== b.dir) return { ok: false, motivo: `Geometrías distintas: track ${a.track} ${dirName(a.dir)} frente a track ${b.track} ${dirName(b.dir)}. El ángulo de visión cambia el brillo del radar y produciría cambios falsos.` };
-  if (a.coleccion && b.coleccion && /beta/i.test(a.coleccion) !== /beta/i.test(b.coleccion)) return { ok: false, motivo: 'Una fecha es BETA (sin calibrar) y la otra PROVISIONAL o VALIDATED: ASF advierte que no deben mezclarse.' };
-  if (a.prod === 'GIBS' && a.polc && b.polc && a.polc !== b.polc) return { ok: false, motivo: `Modos de polarización distintos (${a.pol} frente a ${b.pol}): NASA colorea distinto las imágenes de polarización simple y dual.` };
+  if (!a.track || !b.track || !a.dir || !b.dir)
+    return { ok: false, motivo: 'Geometría no verificable: se necesita track y dirección del catálogo NASA CMR o del producto original.' };
+  if (a.prod === 'GIBS' && (a.geometryVerified === false || b.geometryVerified === false))
+    return { ok: false, motivo: 'Sondeo GIBS sin geometría CMR: una fecha disponible no demuestra que el par SAR sea compatible.' };
+  if (!['A', 'D'].includes(a.dir) || !['A', 'D'].includes(b.dir) ||
+      !/^[0-9]+$/.test(String(a.track)) || !/^[0-9]+$/.test(String(b.track)))
+    return { ok: false, motivo: 'Mosaico con múltiples tracks o direcciones, o geometría ambigua: se necesita una órbita única.' };
+  if (a.track !== b.track || a.dir !== b.dir)
+    return { ok: false, motivo: 'Las fechas pertenecen a tracks o direcciones de observación distintos.' };
+  if (a.prod === 'GIBS') {
+    if (!a.frame || !b.frame || a.frame !== b.frame)
+      return { ok: false, motivo: 'Los frames no coinciden o no están documentados en CMR; la huella radar puede ser diferente.' };
+    if (!a.maturity || !b.maturity || ['MIXTA', 'DESCONOCIDA'].includes(a.maturity) ||
+        ['MIXTA', 'DESCONOCIDA'].includes(b.maturity) || a.maturity !== b.maturity)
+      return { ok: false, motivo: 'Madurez NISAR diferente o no verificable (BETA / PROVISIONAL / VALIDATED): no mezclar procesamiento.' };
+    if (!a.polc || !b.polc || a.polc === 'mixta' || b.polc === 'mixta' ||
+        a.polc !== b.polc || !a.polsAll || a.polsAll !== b.polsAll)
+      return { ok: false, motivo: 'Composición de polarizaciones diferente, mixta o no verificable para comparar imágenes de falso color.' };
+  }
   if (a.prod === 'GCOV' && a.pols && b.pols && !Object.keys(a.pols).some(p => b.pols[p])) return { ok: false, motivo: 'Las dos fechas no comparten ninguna polarización.' };
   return { ok: true };
 }
 function pairForEvent(acqs, ev) {
   const covers = x => x.cov0 == null || x.cov0 >= 0.5;   // huella CMR: al menos media ciudad cubierta
   const prevCompat = B => { if (!covers(acqs[B])) return -1; let any = -1; for (let A = B - 1; A >= 0; A--) if (covers(acqs[A]) && compat(acqs[A], acqs[B]).ok) { if (!acqs[A].coleccion || acqs[A].coleccion === acqs[B].coleccion) return A; if (any < 0) any = A; if (B - A > 3) break; } return any; };
-  if (!ev) { for (let B = acqs.length - 1; B > 0; B--) { const A = prevCompat(B); if (A >= 0) return [A, B]; } return [Math.max(0, acqs.length - 2), acqs.length - 1]; }
+  if (!ev) { for (let B = acqs.length - 1; B > 0; B--) { const A = prevCompat(B); if (A >= 0) return [A, B]; } return [-1, -1]; }
   const first = acqs.findIndex(x => x.date >= ev);
   if (first >= 0) for (let B = first; B < acqs.length && B <= first + 4; B++) { const A = prevCompat(B); if (A >= 0 && acqs[A].date < ev) return [A, B]; }
-  let B = first < 0 ? acqs.length - 1 : first; if (B === 0) B = Math.min(1, acqs.length - 1); return [Math.max(0, B - 1), B];
+  return [-1, -1];  // ningún par válido: nunca elegir fechas incompatibles
 }
 async function ensureAcq(O, i) {
   const a = O.acqs[i]; if (!a || a.rgba || a.prod !== 'GIBS') return; const bb = O.bbox, [x0, y0] = merc(bb.s, bb.w), [x1, y1] = merc(bb.n, bb.e), W = 900, H = Math.round(W * (y1 - y0) / (x1 - x0));
