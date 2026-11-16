@@ -6,6 +6,14 @@
 
 Fechas en hora de Ecuador. Todo el código se generó con asistencia de IA (ver `USO_DE_IA.md`).
 
+## Nota técnica · 15 nov 2026 · compatibilidad SAR CMR/GIBS
+
+- Se exige compatibilidad de track, dirección, frame, composición de polarizaciones y madurez del producto antes de comparar mosaicos NISAR.
+- Las fechas detectadas solo por exploración de GIBS no aportan geometría suficiente: se informa «Comparación SAR no disponible» y no se calculan áreas de cambio.
+- Si no existe pareja válida para un evento, no se elige arbitrariamente el par de fechas contiguas. Se puede probar un par anterior únicamente si también es compatible.
+- Un error de NASA CMR/GIBS ya no provoca automáticamente una escena SAR simulada; la simulación se selecciona de forma explícita. Las ecuaciones de Guayaquil y Quito siguen intactas.
+- Se corrige la descripción de madurez NISAR conforme a ASF: BETA sin calibración completa, PROVISIONAL calibrado/parcialmente validado y VALIDATED calibrado/validado.
+
 ## Nota documental · 15 nov 2026 · modelos predictivos (sin cambios en ecuaciones)
 
 - Se documenta que los pesos de Guayaquil (50 % lluvia, 30 % caudal, 20 % marea) son **consideraciones exploratorias del equipo**, adoptadas por tiempo limitado del hackathon; no hubo calibración estadística de los pesos ni entrenamiento con eventos históricos.
