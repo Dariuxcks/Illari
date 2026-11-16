@@ -63,7 +63,7 @@ Al abrir, ILLARI muestra la **Situación actual** y se actualiza sola cada 30 mi
 
 ## Método (resumen)
 
-**Observado en vivo (NASA GIBS).** Primero se verifica que las dos fechas sean comparables: mismo track, misma dirección y mismo modo de polarización. Si no lo son, la comparación se bloquea.
+**Observado en vivo (NASA GIBS).** Antes de calcular cambios se exige una pareja de adquisiciones con metadatos CMR compatibles: **mismo track, dirección, frame, composición de polarizaciones y nivel de madurez**. Se rechazan mosaicos diarios ambiguos o con múltiples geometrías. El sondeo directo a GIBS puede encontrar fechas publicadas, pero **no permite determinar su geometría por sí solo**: si falta CMR, ILLARI indica *Comparación SAR no disponible* y no calcula superficies. No se activa automáticamente una escena simulada; la demostración queda como elección explícita. Cuando un par compatible falla temporalmente en GIBS, se intenta un par anterior igualmente compatible.
 En la visualización de NASA (co-polar HH en rojo y azul, cruzada HV en verde), medida sobre Guayaquil, el agua tranquila se ve **oscura y azulada**, la vegetación verde intensa y la ciudad amarilla.
 Tras suavizar los canales (5×5), ILLARI marca:
 - *posible agua nueva*: píxeles que pasan a oscuros y azulados (R+G+B < 200 y B/(R+G+B) > 0,24) y pierden brillo;
@@ -151,6 +151,6 @@ Se preparó antes del 14 nov 2026: confirmen con su Local Lead si se permite pre
 
 - Con el moteado del radar, el viento sobre el agua, la sombra en laderas y la revisita de 12 días, una inundación de horas puede no verse.
 - Los umbrales son una primera calibración; validar con los reportes de Segura EP, Bomberos Quito y la SNGR.
-- Los productos NISAR PROVISIONAL y BETA están calibrados pero aún en validación.
+- **Madurez NISAR (ASF):** BETA **no está completamente calibrado**, PROVISIONAL está calibrado y parcialmente validado, y VALIDATED está calibrado y validado. ILLARI no mezcla estos niveles al comparar mosaicos GIBS. Véase [ASF — disponibilidad y madurez de datos NISAR](https://nisar-docs.asf.alaska.edu/availability-overview/).
 
 En una emergencia, llama al **ECU 911**. ILLARI no reemplaza las alertas oficiales.
